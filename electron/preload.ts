@@ -40,4 +40,16 @@ contextBridge.exposeInMainWorld('electronAPI', {
   onTerminalExit: (callback: (terminalId: string, exitCode: number) => void) => {
     ipcRenderer.on('terminal:exit', (_event, terminalId, exitCode) => callback(terminalId, exitCode));
   },
+
+  // Git
+  gitStatus: (projectPath: string) => ipcRenderer.invoke('git:status', projectPath),
+  gitLog: (projectPath: string, maxCount?: number) => ipcRenderer.invoke('git:log', projectPath, maxCount),
+  gitDiff: (projectPath: string, filePath?: string) => ipcRenderer.invoke('git:diff', projectPath, filePath),
+  gitAdd: (projectPath: string, files: string[]) => ipcRenderer.invoke('git:add', projectPath, files),
+  gitCommit: (projectPath: string, message: string) => ipcRenderer.invoke('git:commit', projectPath, message),
+  gitPull: (projectPath: string) => ipcRenderer.invoke('git:pull', projectPath),
+  gitPush: (projectPath: string) => ipcRenderer.invoke('git:push', projectPath),
+  gitCheckout: (projectPath: string, branch: string) => ipcRenderer.invoke('git:checkout', projectPath, branch),
+  gitBranches: (projectPath: string) => ipcRenderer.invoke('git:branches', projectPath),
+  gitShow: (projectPath: string, hash: string) => ipcRenderer.invoke('git:show', projectPath, hash),
 });
