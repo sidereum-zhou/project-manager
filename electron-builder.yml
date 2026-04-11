@@ -1,0 +1,20 @@
+appId: com.flux.project-manager
+productName: FLUX Project Manager
+directories:
+  buildResources: build
+  output: release
+files:
+  - dist/**/*
+  - dist-electron/**/*
+win:
+  target:
+    - nsis
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
+mac:
+  target:
+    - dmg
+linux:
+  target:
+    - AppImage
