@@ -4,7 +4,7 @@
       class="file-node-row"
       :style="{ paddingLeft: `${depth * 20 + 8}px` }"
       @click="handleClick"
-      @dblclick="$emit('open', node)"
+      @dblclick="handleDblClick"
     >
       <span v-if="node.isDirectory" class="file-node-arrow">
         <span :class="{ 'is-expanded': expanded }">&#9654;</span>
@@ -25,8 +25,8 @@
         :node="child"
         :depth="depth + 1"
         :project-path="projectPath"
-        @toggle="$emit('toggle', $event)"
-        @open="$emit('open', $event)"
+        :on-toggle="onToggle"
+        :on-open="onOpen"
       />
     </div>
   </div>
@@ -49,30 +49,28 @@ const props = defineProps<{
   node: FileNodeData;
   depth: number;
   projectPath: string;
-}>();
-
-const emit = defineEmits<{
-  toggle: [node: FileNodeData];
-  open: [node: FileNodeData];
+  onToggle: (node: FileNodeData) => void;
+  onOpen: (node: FileNodeData) => void;
 }>();
 
 const expanded = ref(false);
 
 function handleClick(): void {
-  emit('toggle', props.node);
+  props.onToggle(props.node);
   expanded.value = !expanded.value;
 }
 
+function handleDblClick(): void {
+  props.onOpen(props.node);
+}
+
 const iconMap: Record<string, { char: string; color: string }> = {
-  // Directories
   '': { char: '\u{1F4C1}', color: '#e8b130' },
-  // Config
   json: { char: '{}', color: '#cbcb41' },
   yaml: { char: '{-}', color: '#cb41f7' },
   yml: { char: '{-}', color: '#cb41f7' },
   toml: { char: '{-}', color: '#cb41f7' },
   xml: { char: '<>', color: '#e44d26' },
-  // Web
   html: { char: '<>', color: '#e44d26' },
   css: { char: '#', color: '#264de4' },
   scss: { char: '#', color: '#cf649a' },
@@ -84,11 +82,9 @@ const iconMap: Record<string, { char: string; color: string }> = {
   jsx: { char: 'JX', color: '#61dafb' },
   md: { char: 'M', color: '#519aba' },
   mdx: { char: 'M', color: '#519aba' },
-  // Backend
   py: { char: 'PY', color: '#3776ab' },
   java: { char: 'JV', color: '#b07219' },
   gradle: { char: 'GR', color: '#02303a' },
-  // Other
   sh: { char: '$', color: '#89e051' },
   bat: { char: '$', color: '#89e051' },
   ps1: { char: '$', color: '#012456' },
@@ -96,14 +92,12 @@ const iconMap: Record<string, { char: string; color: string }> = {
   env: { char: '\u{2699}', color: '#ffd700' },
   lock: { char: '\u{1F512}', color: '#888' },
   gitignore: { char: '\u{1F500}', color: '#f05032' },
-  // Assets
   png: { char: '\u{1F5BC}', color: '#a074c4' },
   jpg: { char: '\u{1F5BC}', color: '#a074c4' },
   jpeg: { char: '\u{1F5BC}', color: '#a074c4' },
   gif: { char: '\u{1F5BC}', color: '#a074c4' },
   svg: { char: '\u{1F5BC}', color: '#ffb13b' },
   ico: { char: '\u{1F5BC}', color: '#a074c4' },
-  // Docs
   txt: { char: '\u{1F4C4}', color: '#888' },
   pdf: { char: '\u{1F4C4}', color: '#d04423' },
   doc: { char: '\u{1F4C4}', color: '#2b579a' },
@@ -128,7 +122,6 @@ const iconColor = computed(() => {
   const icon = iconMap[props.node.suffix || ''];
   return icon ? icon.color : '#888';
 });
-
 </script>
 
 <style scoped>
@@ -145,11 +138,9 @@ const iconColor = computed(() => {
   height: 28px;
   line-height: 28px;
 }
-
 .file-node-row:hover {
   background: rgba(255, 255, 255, 0.06);
 }
-
 .file-node-arrow {
   display: inline-flex;
   align-items: center;
@@ -160,15 +151,12 @@ const iconColor = computed(() => {
   flex-shrink: 0;
   transition: transform 0.15s;
 }
-
 .file-node-arrow .is-expanded {
   transform: rotate(90deg);
 }
-
 .spacer {
   visibility: hidden;
 }
-
 .file-node-icon {
   display: inline-flex;
   align-items: center;
@@ -177,7 +165,6 @@ const iconColor = computed(() => {
   font-size: 14px;
   text-align: center;
 }
-
 .file-node-label {
   overflow: hidden;
   text-overflow: ellipsis;

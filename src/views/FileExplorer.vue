@@ -13,8 +13,8 @@
           :node="node"
           :depth="0"
           :project-path="projectPath"
-          @toggle="handleToggle"
-          @open="handleOpen"
+          :on-toggle="handleToggle"
+          :on-open="handleOpen"
         />
       </div>
     </div>
