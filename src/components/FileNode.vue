@@ -3,7 +3,7 @@
     <div
       class="file-node-row"
       :style="{ paddingLeft: `${depth * 20 + 8}px` }"
-      @click="$emit('toggle', node)"
+      @click="handleClick"
       @dblclick="$emit('open', node)"
     >
       <span v-if="node.isDirectory" class="file-node-arrow">
@@ -57,6 +57,11 @@ defineEmits<{
 }>();
 
 const expanded = ref(false);
+
+function handleClick(): void {
+  emit('toggle', props.node);
+  expanded.value = !expanded.value;
+}
 
 const iconMap: Record<string, { char: string; color: string }> = {
   // Directories
