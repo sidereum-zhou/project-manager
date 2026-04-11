@@ -1,24 +1,24 @@
 <template>
   <div class="settings-page">
-    <h3 class="settings-title">Settings</h3>
+    <h3 class="settings-title">设置</h3>
     <n-form label-placement="left" label-width="160">
-      <n-form-item label="Terminal Font">
+      <n-form-item label="终端字体">
         <n-input v-model:value="settings.defaultTerminalFont" />
       </n-form-item>
-      <n-form-item label="Terminal Font Size">
+      <n-form-item label="终端字号">
         <n-input-number v-model:value="settings.defaultTerminalFontSize" :min="10" :max="24" />
       </n-form-item>
       <n-form-item>
-        <n-button type="primary" @click="saveSettings">Save</n-button>
+        <n-button type="primary" @click="saveSettings">保存</n-button>
       </n-form-item>
     </n-form>
     <n-divider />
-    <n-form-item label="Clear All Projects">
+    <n-form-item label="清除所有项目">
       <n-popconfirm @positive-click="clearAllProjects">
         <template #trigger>
-          <n-button type="error" size="small">Clear All Data</n-button>
+          <n-button type="error" size="small">清除所有数据</n-button>
         </template>
-        This will remove all project configurations. Continue?
+        此操作将删除所有项目配置，是否继续？
       </n-popconfirm>
     </n-form-item>
   </div>

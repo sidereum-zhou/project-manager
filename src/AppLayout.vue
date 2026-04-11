@@ -9,7 +9,7 @@
     <div class="app-content">
       <div v-if="!projectStore.activeProject" class="app-empty">
         <n-icon size="48" :component="FolderOpenOutline" style="color: #444;" />
-        <p>Select or import a project to get started</p>
+        <p>选择或导入一个项目开始使用</p>
       </div>
       <ProjectOverview
         v-else
@@ -40,12 +40,12 @@ async function handleImport(): Promise<void> {
   if (!result) return;
 
   dialog.create({
-    title: 'Import Project',
-    content: `Detected: ${result.name} (${result.type})`,
-    positiveText: 'Import',
+    title: '导入项目',
+    content: `检测到: ${result.name} (${result.type})`,
+    positiveText: '导入',
     onPositiveClick: async () => {
       await projectStore.addProject(result);
-      message.success('Project imported successfully');
+      message.success('项目导入成功');
     },
   });
 }

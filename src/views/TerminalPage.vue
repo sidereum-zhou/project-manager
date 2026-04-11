@@ -1,8 +1,8 @@
 <template>
   <div class="terminal-page">
     <div class="terminal-toolbar">
-      <n-button size="tiny" @click="createTerminal">+ New Terminal</n-button>
-      <n-button size="tiny" @click="clearTerminal">Clear</n-button>
+      <n-button size="tiny" @click="createTerminal">+ 新建终端</n-button>
+      <n-button size="tiny" @click="clearTerminal">清屏</n-button>
     </div>
     <div class="terminal-container" ref="containerRef">
       <div ref="terminalRef" class="terminal-instance"></div>

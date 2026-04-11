@@ -10,46 +10,46 @@
       </div>
       <div class="overview-actions">
         <n-button size="small" :loading="installing" @click="handleInstall">
-          Install Dependencies
+          安装依赖
         </n-button>
         <n-button type="success" size="small" :loading="starting" @click="handleStart">
-          Start
+          启动
         </n-button>
         <n-button size="small" :disabled="!isRunning" @click="handleStop">
-          Stop
+          停止
         </n-button>
         <n-button size="small" :loading="starting" @click="handleRestart">
-          Restart
+          重启
         </n-button>
       </div>
     </div>
 
     <n-tabs type="line" animated>
-      <n-tab-pane name="overview" tab="Overview">
+      <n-tab-pane name="overview" tab="概览">
         <div class="overview-details">
           <n-descriptions bordered :column="2" label-placement="left">
-            <n-descriptions-item label="Package Manager">
+            <n-descriptions-item label="包管理器">
               {{ project.packageManager || 'N/A' }}
             </n-descriptions-item>
-            <n-descriptions-item label="Install Command">
+            <n-descriptions-item label="安装命令">
               {{ effectiveInstallCmd.join(' ') || 'N/A' }}
             </n-descriptions-item>
-            <n-descriptions-item label="Start Command">
+            <n-descriptions-item label="启动命令">
               {{ effectiveStartCmd.join(' ') || 'N/A' }}
             </n-descriptions-item>
-            <n-descriptions-item label="Added">
+            <n-descriptions-item label="添加时间">
               {{ new Date(project.addedAt).toLocaleDateString() }}
             </n-descriptions-item>
           </n-descriptions>
         </div>
       </n-tab-pane>
-      <n-tab-pane name="terminal" tab="Terminal">
+      <n-tab-pane name="terminal" tab="终端">
         <TerminalPage :project="project" />
       </n-tab-pane>
-      <n-tab-pane name="files" tab="Files">
+      <n-tab-pane name="files" tab="文件">
         <FileExplorer :project-path="project.path" />
       </n-tab-pane>
-      <n-tab-pane name="settings" tab="Settings">
+      <n-tab-pane name="settings" tab="设置">
         <SettingsPage />
       </n-tab-pane>
     </n-tabs>

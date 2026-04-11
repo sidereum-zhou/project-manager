@@ -1,7 +1,7 @@
 <template>
   <div class="project-list">
     <div class="project-list-header">
-      <span class="project-list-title">Projects</span>
+      <span class="project-list-title">项目列表</span>
     </div>
     <div class="project-list-items">
       <ProjectCard
@@ -12,7 +12,7 @@
         @select="selectProject"
       />
       <div v-if="projects.length === 0" class="project-list-empty">
-        No projects yet
+        暂无项目
       </div>
     </div>
     <div class="project-list-footer">
@@ -21,7 +21,7 @@
         block
         @click="$emit('import')"
       >
-        + Import Project
+        + 导入项目
       </n-button>
     </div>
   </div>
