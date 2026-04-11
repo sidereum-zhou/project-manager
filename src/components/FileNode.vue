@@ -51,7 +51,7 @@ const props = defineProps<{
   projectPath: string;
 }>();
 
-defineEmits<{
+const emit = defineEmits<{
   toggle: [node: FileNodeData];
   open: [node: FileNodeData];
 }>();
