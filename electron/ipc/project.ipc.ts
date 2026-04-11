@@ -1,4 +1,4 @@
-import { ipcMain, dialog } from 'electron';
+import { ipcMain, dialog, shell } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import { Store } from '../core/store';
 import { DetectorRegistry } from '../detectors/registry';
@@ -78,6 +78,10 @@ export function registerProjectIpc(store: Store): void {
     } catch {
       return [];
     }
+  });
+
+  ipcMain.handle('project:openFile', async (_event, filePath: string) => {
+    await shell.openPath(filePath);
   });
 
   ipcMain.handle('settings:get', async () => {

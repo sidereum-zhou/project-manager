@@ -9,6 +9,7 @@ electron.contextBridge.exposeInMainWorld("electronAPI", {
   removeProject: (id) => electron.ipcRenderer.invoke("project:remove", id),
   updateProject: (id, updates) => electron.ipcRenderer.invoke("project:update", id, updates),
   listFiles: (dirPath) => electron.ipcRenderer.invoke("project:listFiles", dirPath),
+  openFile: (filePath) => electron.ipcRenderer.invoke("project:openFile", filePath),
   // Settings
   getSettings: () => electron.ipcRenderer.invoke("settings:get"),
   updateSettings: (settings) => electron.ipcRenderer.invoke("settings:update", settings),

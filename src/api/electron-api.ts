@@ -48,6 +48,10 @@ export const electronApi = {
     return api.listFiles(dirPath);
   },
 
+  async openFile(filePath: string): Promise<void> {
+    return api.openFile(filePath);
+  },
+
   async getSettings(): Promise<{ defaultTerminalFont: string; defaultTerminalFontSize: number }> {
     return api.getSettings();
   },

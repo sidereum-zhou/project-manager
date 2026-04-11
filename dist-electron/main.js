@@ -382,6 +382,9 @@ function registerProjectIpc(store) {
       return [];
     }
   });
+  electron.ipcMain.handle("project:openFile", async (_event, filePath) => {
+    await electron.shell.openPath(filePath);
+  });
   electron.ipcMain.handle("settings:get", async () => {
     return store.load().settings;
   });
