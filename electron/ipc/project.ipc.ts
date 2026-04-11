@@ -1,6 +1,7 @@
 import { ipcMain, dialog, shell } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
-import { Store } from '../core/store';
+import { Store, createDefaultServices } from '../core/store';
+import type { StoreProject } from '../core/store';
 import { DetectorRegistry } from '../detectors/registry';
 
 export function registerProjectIpc(store: Store): void {
@@ -31,12 +32,15 @@ export function registerProjectIpc(store: Store): void {
     startCmd?: string[];
   }) => {
     const data = store.load();
-    const project = {
+    const project: StoreProject = {
       id: uuidv4(),
       ...projectData,
       addedAt: new Date().toISOString(),
       customStartCmd: null,
       customInstallCmd: null,
+      lastOpenedTab: 'overview',
+      lastAppliedSceneId: null,
+      services: createDefaultServices(projectData.type, projectData.startCmd),
     };
     data.projects.push(project);
     store.save(data);

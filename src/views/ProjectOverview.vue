@@ -13,6 +13,7 @@
           <span class="pm-pill">{{ addedAtLabel }}</span>
           <span v-if="project.version" class="pm-pill">v{{ project.version }}</span>
           <span class="pm-pill">{{ workspaceLabel }}</span>
+          <span class="pm-pill">{{ serviceLabel }}</span>
         </div>
       </div>
 
@@ -142,6 +143,12 @@
         </div>
       </n-tab-pane>
 
+      <n-tab-pane name="services" tab="服务">
+        <div class="overview-tab">
+          <ServicesPage :project="project" />
+        </div>
+      </n-tab-pane>
+
       <n-tab-pane name="scenes" tab="场景">
         <div class="overview-tab">
           <WorkspaceScenesPage
@@ -196,6 +203,7 @@ import TerminalPage from './TerminalPage.vue';
 import FileExplorer from './FileExplorer.vue';
 import GitPanel from './GitPanel.vue';
 import SettingsPage from './SettingsPage.vue';
+import ServicesPage from './ServicesPage.vue';
 import WorkspaceScenesPage from './WorkspaceScenesPage.vue';
 import ArchitecturePage from './ArchitecturePage.vue';
 
@@ -210,6 +218,12 @@ const pendingTerminalCommands = ref<string[] | null>(null);
 watch(activeTab, (tab) => {
   if (props.project.lastOpenedTab === tab) return;
   void projectStore.updateProject(props.project.id, { lastOpenedTab: tab });
+});
+
+watch(() => props.project.id, () => {
+  activeTab.value = props.project.lastOpenedTab || 'overview';
+  terminalId.value = null;
+  pendingTerminalCommands.value = null;
 });
 
 const typeLabels: Record<string, string> = {
@@ -234,9 +248,15 @@ const tagType = computed(() => tagTypes[props.project.type] || 'default');
 const effectiveInstallCmd = computed(() => props.project.customInstallCmd || props.project.installCmd || []);
 const effectiveStartCmd = computed(() => props.project.customStartCmd || props.project.startCmd || []);
 const subProjects = computed(() => props.project.subProjects || []);
+const services = computed(() => props.project.services || []);
+const autoStartCount = computed(() => services.value.filter(service => service.autoStart).length);
 const addedAtLabel = computed(() => formatDate(props.project.addedAt));
 const workspaceLabel = computed(() => {
   return subProjects.value.length > 0 ? `${subProjects.value.length} 个子项目` : '单项目工作区';
+});
+const serviceLabel = computed(() => {
+  if (services.value.length === 0) return '未配置服务';
+  return `${services.value.length} 个服务 · ${autoStartCount.value} 个自动`;
 });
 
 const summaryCards = computed(() => [
@@ -254,6 +274,13 @@ const summaryCards = computed(() => [
     label: '仓库结构',
     value: workspaceLabel.value,
     copy: subProjects.value.length ? '适合从文件树快速切换子模块。' : '结构简洁，适合集中操作。 ',
+  },
+  {
+    label: '服务编排',
+    value: services.value.length > 0 ? `${services.value.length} 个服务` : '未配置',
+    copy: services.value.length
+      ? `${autoStartCount.value} 个标记为自动服务，可在服务页统一编排与查看日志。`
+      : '可以把 web、api、worker 拆成独立服务统一管理。',
   },
 ]);
 
@@ -284,6 +311,7 @@ const detailItems = computed(() => [
 
 const workflowItems = [
   { label: '场景', copy: '保存一组工作区状态，把常用面板和命令封装成可以重复应用的流程。' },
+  { label: '服务', copy: '集中管理多个本地服务的启动、停止、重启和实时日志输出。' },
   { label: '终端', copy: '执行安装、启动、重启和手动命令，适合持续观察输出。' },
   { label: '文件', copy: '浏览源码目录，展开层级并双击直接打开文件。' },
   { label: 'Git', copy: '查看当前分支、变更文件、提交历史和可切换分支。' },
@@ -454,7 +482,7 @@ function formatDate(value: string): string {
 
 .overview-metrics {
   display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 14px;
 }
 

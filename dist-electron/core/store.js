@@ -4,6 +4,7 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 exports.Store = void 0;
+exports.createDefaultServices = createDefaultServices;
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
 const DEFAULT_DATA = {
@@ -49,6 +50,7 @@ class Store {
                     ...project,
                     lastOpenedTab: project.lastOpenedTab ?? null,
                     lastAppliedSceneId: project.lastAppliedSceneId ?? null,
+                    services: normalizeProjectServices(project),
                 }))
                 : [],
             workspaceScenes: Array.isArray(data.workspaceScenes)
@@ -66,3 +68,40 @@ class Store {
     }
 }
 exports.Store = Store;
+function normalizeProjectServices(project) {
+    if (Array.isArray(project.services) && project.services.length > 0) {
+        return project.services.map((service, index) => ({
+            id: service.id || `service-${index + 1}`,
+            name: service.name || `Service ${index + 1}`,
+            command: Array.isArray(service.command) ? service.command : [],
+            cwd: service.cwd || '.',
+            autoStart: Boolean(service.autoStart),
+            env: service.env ?? null,
+        }));
+    }
+    return createDefaultServices(project.type || 'unknown', project.customStartCmd || project.startCmd);
+}
+function createDefaultServices(type, startCmd) {
+    if (!startCmd || startCmd.length === 0)
+        return [];
+    return [{
+            id: 'primary-service',
+            name: defaultServiceName(type),
+            command: startCmd,
+            cwd: '.',
+            autoStart: false,
+            env: null,
+        }];
+}
+function defaultServiceName(type) {
+    switch (type) {
+        case 'python':
+            return 'Python Service';
+        case 'java':
+            return 'Java Service';
+        case 'monorepo':
+            return 'Primary Workspace';
+        default:
+            return 'App Service';
+    }
+}

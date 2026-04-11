@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.registerProjectIpc = registerProjectIpc;
 const electron_1 = require("electron");
 const uuid_1 = require("uuid");
+const store_1 = require("../core/store");
 const registry_1 = require("../detectors/registry");
 function registerProjectIpc(store) {
     const registry = new registry_1.DetectorRegistry();
@@ -28,6 +29,9 @@ function registerProjectIpc(store) {
             addedAt: new Date().toISOString(),
             customStartCmd: null,
             customInstallCmd: null,
+            lastOpenedTab: 'overview',
+            lastAppliedSceneId: null,
+            services: (0, store_1.createDefaultServices)(projectData.type, projectData.startCmd),
         };
         data.projects.push(project);
         store.save(data);

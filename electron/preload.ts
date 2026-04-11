@@ -24,6 +24,30 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('process:restart', projectId, cwd, cmd),
   getProcessStatus: (projectId: string) => ipcRenderer.invoke('process:status', projectId),
 
+  // Services
+  startService: (projectId: string, projectPath: string, service: any) =>
+    ipcRenderer.invoke('service:start', projectId, projectPath, service),
+  stopService: (projectId: string, serviceId: string) =>
+    ipcRenderer.invoke('service:stop', projectId, serviceId),
+  restartService: (projectId: string, projectPath: string, service: any) =>
+    ipcRenderer.invoke('service:restart', projectId, projectPath, service),
+  listServiceStatuses: (projectId: string, serviceIds: string[]) =>
+    ipcRenderer.invoke('service:statuses', projectId, serviceIds),
+  getServiceLogs: (projectId: string, serviceId: string) =>
+    ipcRenderer.invoke('service:logs', projectId, serviceId),
+  clearServiceLogs: (projectId: string, serviceId?: string | null) =>
+    ipcRenderer.invoke('service:clearLogs', projectId, serviceId),
+  onServiceLog: (callback: (payload: any) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: any) => callback(payload);
+    ipcRenderer.on('service:log', listener);
+    return () => ipcRenderer.removeListener('service:log', listener);
+  },
+  onServiceStatus: (callback: (payload: any) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: any) => callback(payload);
+    ipcRenderer.on('service:status', listener);
+    return () => ipcRenderer.removeListener('service:status', listener);
+  },
+
   // Terminal
   createTerminal: (projectId: string, cwd: string) =>
     ipcRenderer.invoke('terminal:create', projectId, cwd),

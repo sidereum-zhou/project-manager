@@ -158,6 +158,7 @@ const form = reactive({
 
 const tabOptions = [
   { label: '概览', value: 'overview' },
+  { label: '服务', value: 'services' },
   { label: '场景', value: 'scenes' },
   { label: '终端', value: 'terminal' },
   { label: '文件', value: 'files' },

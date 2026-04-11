@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { Store } from './store';
+import { Store, createDefaultServices } from './store';
 
 describe('Store', () => {
   let tmpDir: string;
@@ -38,6 +38,7 @@ describe('Store', () => {
         customInstallCmd: null,
         lastOpenedTab: 'overview',
         lastAppliedSceneId: null,
+        services: createDefaultServices('nodejs', ['npm', 'start']),
       }],
       workspaceScenes: [],
       settings: {
@@ -105,5 +106,26 @@ describe('Store', () => {
     const reloaded = new Store(rawPath).load();
     expect(reloaded.projects[0].lastOpenedTab).toBeNull();
     expect(reloaded.projects[0].lastAppliedSceneId).toBeNull();
+    expect(reloaded.projects[0].services).toHaveLength(0);
+  });
+
+  it('should create default services from start command for legacy projects', () => {
+    const rawPath = store.getFilePath();
+    fs.writeFileSync(rawPath, JSON.stringify({
+      projects: [{
+        id: 'legacy-project',
+        name: 'legacy',
+        path: '/legacy',
+        type: 'nodejs',
+        addedAt: '2026-04-11T00:00:00Z',
+        startCmd: ['npm', 'run', 'dev'],
+      }],
+      workspaceScenes: [],
+      settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
+    }), 'utf-8');
+
+    const reloaded = new Store(rawPath).load();
+    expect(reloaded.projects[0].services).toHaveLength(1);
+    expect(reloaded.projects[0].services?.[0].command).toEqual(['npm', 'run', 'dev']);
   });
 });

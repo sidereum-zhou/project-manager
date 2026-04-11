@@ -1,4 +1,11 @@
-import type { ArchitectureAnalysis, Project, WorkspaceScene } from '@/types/project';
+import type {
+  ArchitectureAnalysis,
+  ProcessStatus,
+  Project,
+  ProjectService,
+  ServiceLogEntry,
+  WorkspaceScene,
+} from '@/types/project';
 
 export interface DetectedProject {
   name: string;
@@ -107,6 +114,38 @@ export const electronApi = {
 
   async getProcessStatus(projectId: string): Promise<string> {
     return api.getProcessStatus(projectId);
+  },
+
+  async startService(projectId: string, projectPath: string, service: ProjectService): Promise<boolean> {
+    return api.startService(projectId, projectPath, service);
+  },
+
+  async stopService(projectId: string, serviceId: string): Promise<boolean> {
+    return api.stopService(projectId, serviceId);
+  },
+
+  async restartService(projectId: string, projectPath: string, service: ProjectService): Promise<boolean> {
+    return api.restartService(projectId, projectPath, service);
+  },
+
+  async listServiceStatuses(projectId: string, serviceIds: string[]): Promise<Record<string, ProcessStatus>> {
+    return api.listServiceStatuses(projectId, serviceIds);
+  },
+
+  async getServiceLogs(projectId: string, serviceId: string): Promise<ServiceLogEntry[]> {
+    return api.getServiceLogs(projectId, serviceId);
+  },
+
+  async clearServiceLogs(projectId: string, serviceId?: string | null): Promise<boolean> {
+    return api.clearServiceLogs(projectId, serviceId);
+  },
+
+  onServiceLog(callback: (payload: { projectId: string; serviceId: string; entry: ServiceLogEntry }) => void): () => void {
+    return api.onServiceLog(callback);
+  },
+
+  onServiceStatus(callback: (payload: { projectId: string; serviceId: string; status: ProcessStatus }) => void): () => void {
+    return api.onServiceStatus(callback);
   },
 
   async createTerminal(projectId: string, cwd: string): Promise<string> {

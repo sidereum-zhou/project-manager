@@ -1,7 +1,17 @@
 import fs from 'fs';
 import path from 'path';
 
-type ProjectTab = 'overview' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'settings';
+type ProjectTab = 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'settings';
+type ServiceEnvMap = Record<string, string>;
+
+export interface StoreProjectService {
+  id: string;
+  name: string;
+  command: string[];
+  cwd: string;
+  autoStart: boolean;
+  env?: ServiceEnvMap | null;
+}
 
 export interface StoreProject {
   id: string;
@@ -18,6 +28,7 @@ export interface StoreProject {
   customInstallCmd?: string[] | null;
   lastOpenedTab?: ProjectTab | null;
   lastAppliedSceneId?: string | null;
+  services?: StoreProjectService[];
 }
 
 export interface StoreWorkspaceScene {
@@ -25,7 +36,7 @@ export interface StoreWorkspaceScene {
   projectId: string;
   name: string;
   description?: string;
-  targetTab: 'overview' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'settings';
+  targetTab: 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'settings';
   terminalCommands: string[];
   preferredBranch?: string | null;
   autoRun: boolean;
@@ -96,6 +107,7 @@ export class Store {
             ...project,
             lastOpenedTab: project.lastOpenedTab ?? null,
             lastAppliedSceneId: project.lastAppliedSceneId ?? null,
+            services: normalizeProjectServices(project),
           }))
         : [],
       workspaceScenes: Array.isArray(data.workspaceScenes)
@@ -110,5 +122,46 @@ export class Store {
         ...(data.settings || {}),
       },
     };
+  }
+}
+
+function normalizeProjectServices(project: Partial<StoreProject>): StoreProjectService[] {
+  if (Array.isArray(project.services) && project.services.length > 0) {
+    return project.services.map((service, index) => ({
+      id: service.id || `service-${index + 1}`,
+      name: service.name || `Service ${index + 1}`,
+      command: Array.isArray(service.command) ? service.command : [],
+      cwd: service.cwd || '.',
+      autoStart: Boolean(service.autoStart),
+      env: service.env ?? null,
+    }));
+  }
+
+  return createDefaultServices(project.type || 'unknown', project.customStartCmd || project.startCmd);
+}
+
+export function createDefaultServices(type: string, startCmd?: string[] | null): StoreProjectService[] {
+  if (!startCmd || startCmd.length === 0) return [];
+
+  return [{
+    id: 'primary-service',
+    name: defaultServiceName(type),
+    command: startCmd,
+    cwd: '.',
+    autoStart: false,
+    env: null,
+  }];
+}
+
+function defaultServiceName(type: string): string {
+  switch (type) {
+    case 'python':
+      return 'Python Service';
+    case 'java':
+      return 'Java Service';
+    case 'monorepo':
+      return 'Primary Workspace';
+    default:
+      return 'App Service';
   }
 }

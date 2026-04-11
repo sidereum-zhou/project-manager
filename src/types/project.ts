@@ -1,5 +1,24 @@
 export type ProjectType = 'nodejs' | 'nodejs-frontend' | 'python' | 'java' | 'monorepo' | 'unknown';
-export type ProjectTab = 'overview' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'settings';
+export type ProjectTab = 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'settings';
+
+export type ProcessStatus = 'starting' | 'running' | 'stopped' | 'error';
+
+export interface ProjectService {
+  id: string;
+  name: string;
+  command: string[];
+  cwd: string;
+  autoStart: boolean;
+  env?: Record<string, string> | null;
+}
+
+export interface ServiceLogEntry {
+  id: string;
+  serviceKey: string;
+  timestamp: string;
+  stream: 'stdout' | 'stderr' | 'system';
+  message: string;
+}
 
 export interface Project {
   id: string;
@@ -16,6 +35,7 @@ export interface Project {
   customInstallCmd?: string[] | null;
   lastOpenedTab?: ProjectTab | null;
   lastAppliedSceneId?: string | null;
+  services?: ProjectService[];
 }
 
 export interface AppSettings {
