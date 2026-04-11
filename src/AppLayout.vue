@@ -13,6 +13,7 @@
       </div>
       <ProjectOverview
         v-else
+        :key="projectStore.activeProjectId"
         :project="projectStore.activeProject"
       />
     </div>
