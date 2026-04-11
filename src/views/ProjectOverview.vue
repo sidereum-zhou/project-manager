@@ -49,6 +49,9 @@
       <n-tab-pane name="files" tab="文件">
         <FileExplorer :project-path="project.path" />
       </n-tab-pane>
+      <n-tab-pane name="git" tab="Git">
+        <GitPanel :project-path="project.path" />
+      </n-tab-pane>
       <n-tab-pane name="settings" tab="设置">
         <SettingsPage />
       </n-tab-pane>
@@ -65,6 +68,7 @@ import type { Project } from '@/types/project';
 import { electronApi } from '@/api/electron-api';
 import TerminalPage from './TerminalPage.vue';
 import FileExplorer from './FileExplorer.vue';
+import GitPanel from './GitPanel.vue';
 import SettingsPage from './SettingsPage.vue';
 
 const props = defineProps<{ project: Project }>();
@@ -106,8 +110,7 @@ function sendToTerminal(cmd: string): void {
 async function handleInstall(): Promise<void> {
   if (effectiveInstallCmd.value.length === 0) return;
   activeTab.value = 'terminal';
-  // cd to project dir then run install command
-  sendToTerminal(`cd "${props.project.path}" && ${effectiveInstallCmd.value.join(' ')}`);
+  sendToTerminal(effectiveInstallCmd.value.join(' '));
 }
 
 async function handleStart(): Promise<void> {
