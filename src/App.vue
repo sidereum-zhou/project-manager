@@ -1,33 +1,27 @@
 <template>
-  <n-config-provider :theme="darkTheme">
-    <n-message-provider>
-      <n-dialog-provider>
-        <div class="app-layout">
-          <ProjectList
-            :projects="projectStore.projects"
-            :active-project-id="projectStore.activeProjectId"
-            @import="handleImport"
-            @select="projectStore.selectProject"
-          />
-          <div class="app-content">
-            <div v-if="!projectStore.activeProject" class="app-empty">
-              <n-icon size="48" :component="FolderOpenOutline" style="color: #444;" />
-              <p>Select or import a project to get started</p>
-            </div>
-            <ProjectOverview
-              v-else
-              :project="projectStore.activeProject"
-            />
-          </div>
-        </div>
-      </n-dialog-provider>
-    </n-message-provider>
-  </n-config-provider>
+  <div class="app-layout">
+    <ProjectList
+      :projects="projectStore.projects"
+      :active-project-id="projectStore.activeProjectId"
+      @import="handleImport"
+      @select="projectStore.selectProject"
+    />
+    <div class="app-content">
+      <div v-if="!projectStore.activeProject" class="app-empty">
+        <n-icon size="48" :component="FolderOpenOutline" style="color: #444;" />
+        <p>Select or import a project to get started</p>
+      </div>
+      <ProjectOverview
+        v-else
+        :project="projectStore.activeProject"
+      />
+    </div>
+  </div>
 </template>
 
 <script setup lang="ts">
 import { onMounted } from 'vue';
-import { NConfigProvider, NMessageProvider, NDialogProvider, NIcon, darkTheme, useMessage, useDialog } from 'naive-ui';
+import { NIcon, useMessage, useDialog } from 'naive-ui';
 import { FolderOpenOutline } from '@vicons/ionicons5';
 import { useProjectStore } from '@/stores/projects';
 import ProjectList from '@/views/ProjectList.vue';
@@ -57,15 +51,7 @@ async function handleImport(): Promise<void> {
 }
 </script>
 
-<style>
-* { box-sizing: border-box; margin: 0; padding: 0; }
-body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background-color: #141414;
-  color: #fff;
-  overflow: hidden;
-}
-#app { height: 100vh; }
+<style scoped>
 .app-layout {
   display: flex;
   height: 100vh;
