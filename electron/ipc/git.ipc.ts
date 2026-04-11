@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import simpleGit, { type SimpleGit } from 'simple-git';
+import simpleGit, { type FileStatusResult, type SimpleGit } from 'simple-git';
 
 const gitInstances = new Map<string, SimpleGit>();
 
@@ -15,12 +15,34 @@ export function registerGitIpc(): void {
     const git = getGit(projectPath);
     try {
       const status = await git.status();
+      const staged: Array<{ path: string; status: 'added' | 'modified' | 'deleted' | 'renamed' }> = [];
+      const modified: Array<{ path: string; status: 'added' | 'modified' | 'deleted' | 'renamed' }> = [];
+
+      for (const file of status.files) {
+        const stagedStatus = mapGitStatus(file.index);
+        const workingStatus = mapGitStatus(file.working_dir);
+
+        if (stagedStatus) {
+          staged.push({
+            path: file.path,
+            status: stagedStatus,
+          });
+        }
+
+        if (workingStatus) {
+          modified.push({
+            path: file.path,
+            status: workingStatus,
+          });
+        }
+      }
+
       return {
         branch: status.current,
         ahead: status.ahead,
         behind: status.behind,
-        staged: status.staged.map((f) => ({ path: f, status: 'modified' as const })),
-        modified: status.modified.map((f) => ({ path: f, status: 'modified' as const })),
+        staged,
+        modified,
         untracked: status.not_added,
       };
     } catch {
@@ -41,12 +63,13 @@ export function registerGitIpc(): void {
     }));
   });
 
-  ipcMain.handle('git:diff', async (_event, projectPath: string, filePath?: string) => {
+  ipcMain.handle('git:diff', async (_event, projectPath: string, filePath?: string, staged: boolean = false) => {
     const git = getGit(projectPath);
+    const args = staged ? ['--cached'] : [];
     if (filePath) {
-      return await git.diff(['--', filePath]);
+      return await git.diff([...args, '--', filePath]);
     }
-    return await git.diff();
+    return await git.diff(args);
   });
 
   ipcMain.handle('git:add', async (_event, projectPath: string, files: string[]) => {
@@ -54,9 +77,34 @@ export function registerGitIpc(): void {
     await git.add(files);
   });
 
+  ipcMain.handle('git:unstage', async (_event, projectPath: string, files: string[]) => {
+    const git = getGit(projectPath);
+    await git.reset(['HEAD', '--', ...files]);
+  });
+
   ipcMain.handle('git:commit', async (_event, projectPath: string, message: string) => {
     const git = getGit(projectPath);
     await git.commit(message);
+  });
+
+  ipcMain.handle('git:discard', async (_event, projectPath: string, trackedFiles: string[], untrackedFiles: string[] = []) => {
+    const git = getGit(projectPath);
+    if (trackedFiles.length > 0) {
+      await git.raw(['checkout', '--', ...trackedFiles]);
+    }
+    if (untrackedFiles.length > 0) {
+      await git.raw(['clean', '-f', '--', ...untrackedFiles]);
+    }
+    return true;
+  });
+
+  ipcMain.handle('git:stash', async (_event, projectPath: string, message?: string) => {
+    const git = getGit(projectPath);
+    const args = ['stash', 'push', '-u'];
+    if (message && message.trim()) {
+      args.push('-m', message.trim());
+    }
+    return await git.raw(args);
   });
 
   ipcMain.handle('git:pull', async (_event, projectPath: string) => {
@@ -76,13 +124,21 @@ export function registerGitIpc(): void {
     await git.checkout(branch);
   });
 
+  ipcMain.handle('git:createBranch', async (_event, projectPath: string, branchName: string) => {
+    const git = getGit(projectPath);
+    await git.checkoutLocalBranch(branchName);
+    return true;
+  });
+
   ipcMain.handle('git:branches', async (_event, projectPath: string) => {
     const git = getGit(projectPath);
-    const branches = await git.branchLocal();
-    return Object.values(branches.all).map((name) => ({
+    const branches = await git.branch(['-a']);
+    return Object.values(branches.all)
+      .filter((name) => !name.includes('HEAD ->'))
+      .map((name) => ({
       name,
       isCurrent: name === branches.current,
-      isRemote: false,
+      isRemote: name.startsWith('remotes/'),
     }));
   });
 
@@ -90,4 +146,21 @@ export function registerGitIpc(): void {
     const git = getGit(projectPath);
     return await git.show([hash, '--stat', '--patch']);
   });
+}
+
+function mapGitStatus(code: FileStatusResult['index']): 'added' | 'modified' | 'deleted' | 'renamed' | null {
+  switch (code) {
+    case 'A':
+    case 'C':
+      return 'added';
+    case 'M':
+    case 'T':
+      return 'modified';
+    case 'D':
+      return 'deleted';
+    case 'R':
+      return 'renamed';
+    default:
+      return null;
+  }
 }

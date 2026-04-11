@@ -1,4 +1,4 @@
-import type { Project } from '@/types/project';
+import type { ArchitectureAnalysis, Project, WorkspaceScene } from '@/types/project';
 
 export interface DetectedProject {
   name: string;
@@ -81,6 +81,10 @@ export const electronApi = {
     return api.openFile(filePath);
   },
 
+  async readTextFile(filePath: string, maxLength?: number): Promise<string | null> {
+    return api.readTextFile(filePath, maxLength);
+  },
+
   async getSettings(): Promise<{ defaultTerminalFont: string; defaultTerminalFontSize: number }> {
     return api.getSettings();
   },
@@ -138,16 +142,28 @@ export const electronApi = {
     return api.gitLog(projectPath, maxCount);
   },
 
-  async gitDiff(projectPath: string, filePath?: string): Promise<string> {
-    return api.gitDiff(projectPath, filePath);
+  async gitDiff(projectPath: string, filePath?: string, staged?: boolean): Promise<string> {
+    return api.gitDiff(projectPath, filePath, staged);
   },
 
   async gitAdd(projectPath: string, files: string[]): Promise<void> {
     return api.gitAdd(projectPath, files);
   },
 
+  async gitUnstage(projectPath: string, files: string[]): Promise<void> {
+    return api.gitUnstage(projectPath, files);
+  },
+
   async gitCommit(projectPath: string, message: string): Promise<void> {
     return api.gitCommit(projectPath, message);
+  },
+
+  async gitDiscard(projectPath: string, trackedFiles: string[], untrackedFiles?: string[]): Promise<void> {
+    return api.gitDiscard(projectPath, trackedFiles, untrackedFiles);
+  },
+
+  async gitStash(projectPath: string, message?: string): Promise<string> {
+    return api.gitStash(projectPath, message);
   },
 
   async gitPull(projectPath: string): Promise<{ status: string; summary: any }> {
@@ -162,11 +178,35 @@ export const electronApi = {
     return api.gitCheckout(projectPath, branch);
   },
 
+  async gitCreateBranch(projectPath: string, branchName: string): Promise<boolean> {
+    return api.gitCreateBranch(projectPath, branchName);
+  },
+
   async gitBranches(projectPath: string): Promise<GitBranch[]> {
     return api.gitBranches(projectPath);
   },
 
   async gitShow(projectPath: string, hash: string): Promise<string> {
     return api.gitShow(projectPath, hash);
+  },
+
+  async listScenes(projectId: string): Promise<WorkspaceScene[]> {
+    return api.listScenes(projectId);
+  },
+
+  async createScene(projectId: string, payload: Omit<WorkspaceScene, 'id' | 'projectId' | 'createdAt' | 'updatedAt' | 'lastUsedAt' | 'useCount'>): Promise<WorkspaceScene> {
+    return api.createScene(projectId, payload);
+  },
+
+  async updateScene(sceneId: string, updates: Partial<WorkspaceScene>): Promise<WorkspaceScene | null> {
+    return api.updateScene(sceneId, updates);
+  },
+
+  async removeScene(sceneId: string): Promise<boolean> {
+    return api.removeScene(sceneId);
+  },
+
+  async analyzeArchitecture(project: Pick<Project, 'name' | 'path' | 'type' | 'packageManager' | 'subProjects'>): Promise<ArchitectureAnalysis> {
+    return api.analyzeArchitecture(project);
   },
 };

@@ -84,6 +84,16 @@ export function registerProjectIpc(store: Store): void {
     await shell.openPath(filePath);
   });
 
+  ipcMain.handle('project:readTextFile', async (_event, filePath: string, maxLength: number = 12000) => {
+    try {
+      const content = require('fs').readFileSync(filePath, 'utf-8') as string;
+      if (content.includes('\u0000')) return null;
+      return content.slice(0, maxLength);
+    } catch {
+      return null;
+    }
+  });
+
   ipcMain.handle('settings:get', async () => {
     return store.load().settings;
   });

@@ -2,17 +2,18 @@
   <div class="file-node">
     <div
       class="file-node-row"
-      :style="{ paddingLeft: `${depth * 20 + 8}px` }"
+      :class="{ expanded: node.isDirectory && expanded }"
+      :style="{ paddingLeft: `${depth * 16 + 10}px`, '--kind-color': kindMeta.color }"
       @click="handleClick"
       @dblclick="handleDblClick"
     >
       <span v-if="node.isDirectory" class="file-node-arrow">
-        <span :class="{ 'is-expanded': expanded }">&#9654;</span>
+        <span :class="{ 'is-expanded': expanded }">&#8250;</span>
       </span>
       <span v-else class="file-node-arrow spacer" />
 
-      <span class="file-node-icon">
-        <span :style="{ color: iconColor }">{{ iconChar }}</span>
+      <span class="file-node-kind">
+        <span>{{ kindMeta.label }}</span>
       </span>
 
       <span class="file-node-label">{{ node.name }}</span>
@@ -49,78 +50,94 @@ const props = defineProps<{
   node: FileNodeData;
   depth: number;
   projectPath: string;
-  onToggle: (node: FileNodeData) => void;
-  onOpen: (node: FileNodeData) => void;
+  onToggle: (node: FileNodeData) => void | Promise<void>;
+  onOpen: (node: FileNodeData) => void | Promise<void>;
 }>();
 
 const expanded = ref(false);
 
-function handleClick(): void {
-  props.onToggle(props.node);
+async function handleClick(): Promise<void> {
+  if (!props.node.isDirectory) {
+    await props.onOpen(props.node);
+    return;
+  }
+
+  if (!expanded.value) {
+    await props.onToggle(props.node);
+  }
   expanded.value = !expanded.value;
 }
 
-function handleDblClick(): void {
-  props.onOpen(props.node);
+async function handleDblClick(): Promise<void> {
+  if (props.node.isDirectory) {
+    if (!expanded.value) {
+      await props.onToggle(props.node);
+      expanded.value = true;
+    }
+    return;
+  }
+
+  await props.onOpen(props.node);
 }
 
-const iconMap: Record<string, { char: string; color: string }> = {
-  '': { char: '\u{1F4C1}', color: '#e8b130' },
-  json: { char: '{}', color: '#cbcb41' },
-  yaml: { char: '{-}', color: '#cb41f7' },
-  yml: { char: '{-}', color: '#cb41f7' },
-  toml: { char: '{-}', color: '#cb41f7' },
-  xml: { char: '<>', color: '#e44d26' },
-  html: { char: '<>', color: '#e44d26' },
-  css: { char: '#', color: '#264de4' },
-  scss: { char: '#', color: '#cf649a' },
-  less: { char: '#', color: '#1d365d' },
-  vue: { char: 'V', color: '#42b883' },
-  ts: { char: 'TS', color: '#3178c6' },
-  tsx: { char: 'TX', color: '#3178c6' },
-  js: { char: 'JS', color: '#f7df1e' },
-  jsx: { char: 'JX', color: '#61dafb' },
-  md: { char: 'M', color: '#519aba' },
-  mdx: { char: 'M', color: '#519aba' },
-  py: { char: 'PY', color: '#3776ab' },
-  java: { char: 'JV', color: '#b07219' },
-  gradle: { char: 'GR', color: '#02303a' },
-  sh: { char: '$', color: '#89e051' },
-  bat: { char: '$', color: '#89e051' },
-  ps1: { char: '$', color: '#012456' },
-  sql: { char: 'DB', color: '#e38c00' },
-  env: { char: '\u{2699}', color: '#ffd700' },
-  lock: { char: '\u{1F512}', color: '#888' },
-  gitignore: { char: '\u{1F500}', color: '#f05032' },
-  png: { char: '\u{1F5BC}', color: '#a074c4' },
-  jpg: { char: '\u{1F5BC}', color: '#a074c4' },
-  jpeg: { char: '\u{1F5BC}', color: '#a074c4' },
-  gif: { char: '\u{1F5BC}', color: '#a074c4' },
-  svg: { char: '\u{1F5BC}', color: '#ffb13b' },
-  ico: { char: '\u{1F5BC}', color: '#a074c4' },
-  txt: { char: '\u{1F4C4}', color: '#888' },
-  pdf: { char: '\u{1F4C4}', color: '#d04423' },
-  doc: { char: '\u{1F4C4}', color: '#2b579a' },
-  docx: { char: '\u{1F4C4}', color: '#2b579a' },
+const kindMap: Record<string, { label: string; color: string }> = {
+  json: { label: 'JSON', color: '#f0b35f' },
+  yaml: { label: 'YAML', color: '#b39cff' },
+  yml: { label: 'YAML', color: '#b39cff' },
+  toml: { label: 'TOML', color: '#b39cff' },
+  xml: { label: 'XML', color: '#ff8299' },
+  html: { label: 'HTML', color: '#ff9b72' },
+  css: { label: 'CSS', color: '#79b6ff' },
+  scss: { label: 'SCSS', color: '#f09ac2' },
+  less: { label: 'LESS', color: '#89a4ff' },
+  vue: { label: 'VUE', color: '#62d4b8' },
+  ts: { label: 'TS', color: '#79b6ff' },
+  tsx: { label: 'TSX', color: '#79b6ff' },
+  js: { label: 'JS', color: '#f0b35f' },
+  jsx: { label: 'JSX', color: '#79b6ff' },
+  md: { label: 'MD', color: '#8fb7dd' },
+  mdx: { label: 'MDX', color: '#8fb7dd' },
+  py: { label: 'PY', color: '#f0b35f' },
+  java: { label: 'JAVA', color: '#ff8299' },
+  gradle: { label: 'GRD', color: '#62d4b8' },
+  sh: { label: 'SH', color: '#8de4d0' },
+  bat: { label: 'BAT', color: '#8de4d0' },
+  ps1: { label: 'PS', color: '#79b6ff' },
+  sql: { label: 'SQL', color: '#f0b35f' },
+  env: { label: 'ENV', color: '#f0b35f' },
+  lock: { label: 'LOCK', color: '#9ba8bc' },
+  gitignore: { label: 'GIT', color: '#ff9b72' },
+  png: { label: 'IMG', color: '#b39cff' },
+  jpg: { label: 'IMG', color: '#b39cff' },
+  jpeg: { label: 'IMG', color: '#b39cff' },
+  gif: { label: 'IMG', color: '#b39cff' },
+  svg: { label: 'SVG', color: '#ffcb6b' },
+  ico: { label: 'ICO', color: '#b39cff' },
+  txt: { label: 'TXT', color: '#9ba8bc' },
+  pdf: { label: 'PDF', color: '#ff8299' },
+  doc: { label: 'DOC', color: '#79b6ff' },
+  docx: { label: 'DOC', color: '#79b6ff' },
 };
 
-const iconChar = computed(() => {
+const kindMeta = computed(() => {
   if (props.node.isDirectory) {
-    const special = props.node.name;
-    if (special === 'node_modules') return '\u{1F4E6}';
-    if (special.startsWith('.') && special !== 'node_modules') return '\u{1F4C1}';
-    if (special === 'src') return '\u{1F4C2}';
-    if (special === 'public' || special === 'static' || special === 'assets') return '\u{1F5BC}';
-    return '\u{1F4C1}';
+    const name = props.node.name.toLowerCase();
+    if (name === 'src') return { label: 'SRC', color: '#79b6ff' };
+    if (name === 'assets' || name === 'public' || name === 'static') return { label: 'AST', color: '#62d4b8' };
+    if (name === 'node_modules') return { label: 'NPM', color: '#f0b35f' };
+    return { label: 'DIR', color: '#f0b35f' };
   }
-  const icon = iconMap[props.node.suffix || ''];
-  return icon ? icon.char : '\u{1F4C4}';
-});
 
-const iconColor = computed(() => {
-  if (props.node.isDirectory) return '#e8b130';
-  const icon = iconMap[props.node.suffix || ''];
-  return icon ? icon.color : '#888';
+  const special = props.node.name.toLowerCase();
+  if (special === 'package.json') return { label: 'PKG', color: '#f0b35f' };
+  if (special === 'tsconfig.json') return { label: 'CFG', color: '#79b6ff' };
+  if (special === '.env') return { label: 'ENV', color: '#f0b35f' };
+
+  const icon = kindMap[props.node.suffix || ''];
+  if (icon) return icon;
+
+  const fallback = (props.node.suffix || 'FILE').slice(0, 4).toUpperCase();
+  return { label: fallback, color: '#9ba8bc' };
 });
 </script>
 
@@ -128,45 +145,70 @@ const iconColor = computed(() => {
 .file-node-row {
   display: flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px 8px;
-  border-radius: 4px;
+  gap: 8px;
+  padding: 4px 10px;
+  border-radius: 14px;
   cursor: pointer;
   font-size: 13px;
-  color: #ddd;
+  color: var(--pm-text-secondary);
   white-space: nowrap;
-  height: 28px;
-  line-height: 28px;
+  min-height: 34px;
+  line-height: 1.4;
+  transition:
+    background-color 0.16s ease,
+    color 0.16s ease;
 }
+
 .file-node-row:hover {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--pm-text-primary);
 }
+
+.file-node-row.expanded {
+  background: rgba(255, 255, 255, 0.04);
+}
+
 .file-node-arrow {
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   width: 16px;
   height: 16px;
-  font-size: 10px;
-  color: #888;
+  font-size: 16px;
+  color: var(--pm-text-tertiary);
   flex-shrink: 0;
-  transition: transform 0.15s;
+  transition: transform 0.16s ease;
 }
+
 .file-node-arrow .is-expanded {
   transform: rotate(90deg);
 }
+
 .spacer {
   visibility: hidden;
 }
-.file-node-icon {
+
+.file-node-kind {
   display: inline-flex;
   align-items: center;
-  width: 20px;
+  justify-content: center;
+  min-width: 42px;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--kind-color) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--kind-color) 24%, transparent);
   flex-shrink: 0;
-  font-size: 14px;
-  text-align: center;
+  color: var(--kind-color);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
+
 .file-node-label {
   overflow: hidden;
   text-overflow: ellipsis;
+  color: inherit;
 }
 </style>

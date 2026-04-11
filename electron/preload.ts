@@ -10,6 +10,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateProject: (id: string, updates: any) => ipcRenderer.invoke('project:update', id, updates),
   listFiles: (dirPath: string) => ipcRenderer.invoke('project:listFiles', dirPath),
   openFile: (filePath: string) => ipcRenderer.invoke('project:openFile', filePath),
+  readTextFile: (filePath: string, maxLength?: number) => ipcRenderer.invoke('project:readTextFile', filePath, maxLength),
 
   // Settings
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -44,12 +45,24 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Git
   gitStatus: (projectPath: string) => ipcRenderer.invoke('git:status', projectPath),
   gitLog: (projectPath: string, maxCount?: number) => ipcRenderer.invoke('git:log', projectPath, maxCount),
-  gitDiff: (projectPath: string, filePath?: string) => ipcRenderer.invoke('git:diff', projectPath, filePath),
+  gitDiff: (projectPath: string, filePath?: string, staged?: boolean) => ipcRenderer.invoke('git:diff', projectPath, filePath, staged),
   gitAdd: (projectPath: string, files: string[]) => ipcRenderer.invoke('git:add', projectPath, files),
+  gitUnstage: (projectPath: string, files: string[]) => ipcRenderer.invoke('git:unstage', projectPath, files),
   gitCommit: (projectPath: string, message: string) => ipcRenderer.invoke('git:commit', projectPath, message),
+  gitDiscard: (projectPath: string, trackedFiles: string[], untrackedFiles?: string[]) =>
+    ipcRenderer.invoke('git:discard', projectPath, trackedFiles, untrackedFiles),
+  gitStash: (projectPath: string, message?: string) => ipcRenderer.invoke('git:stash', projectPath, message),
   gitPull: (projectPath: string) => ipcRenderer.invoke('git:pull', projectPath),
   gitPush: (projectPath: string) => ipcRenderer.invoke('git:push', projectPath),
   gitCheckout: (projectPath: string, branch: string) => ipcRenderer.invoke('git:checkout', projectPath, branch),
+  gitCreateBranch: (projectPath: string, branchName: string) => ipcRenderer.invoke('git:createBranch', projectPath, branchName),
   gitBranches: (projectPath: string) => ipcRenderer.invoke('git:branches', projectPath),
   gitShow: (projectPath: string, hash: string) => ipcRenderer.invoke('git:show', projectPath, hash),
+
+  // Scenes / Architecture
+  listScenes: (projectId: string) => ipcRenderer.invoke('scene:list', projectId),
+  createScene: (projectId: string, payload: any) => ipcRenderer.invoke('scene:create', projectId, payload),
+  updateScene: (sceneId: string, updates: any) => ipcRenderer.invoke('scene:update', sceneId, updates),
+  removeScene: (sceneId: string) => ipcRenderer.invoke('scene:remove', sceneId),
+  analyzeArchitecture: (project: any) => ipcRenderer.invoke('architecture:analyze', project),
 });

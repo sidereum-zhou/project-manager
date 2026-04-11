@@ -1,34 +1,43 @@
 <template>
   <div class="file-explorer">
-    <div v-if="treeData.length === 0" class="file-explorer-empty">
-      加载中...
+    <div class="file-explorer-header">
+      <div>
+        <p class="pm-kicker">Explorer</p>
+        <h3 class="file-explorer-title">{{ rootName }}</h3>
+      </div>
+      <span class="file-explorer-hint">单击展开目录，双击文件打开</span>
+    </div>
+
+    <div v-if="loading" class="file-explorer-empty pm-empty-state">
+      <strong>正在加载文件树</strong>
+      <span>会自动过滤常见构建目录和隐藏目录。</span>
+    </div>
+    <div v-else-if="treeData.length === 0" class="file-explorer-empty pm-empty-state">
+      <strong>没有可展示的文件</strong>
+      <span>当前目录可能只有被过滤的构建产物，或尚未写入源码。</span>
     </div>
     <div v-else class="file-tree" ref="treeRef">
-      <div
-        v-for="node in treeData"
-        :key="node.path"
-        class="tree-node"
-      >
-        <FileNode
-          :node="node"
-          :depth="0"
-          :project-path="projectPath"
-          :on-toggle="handleToggle"
-          :on-open="handleOpen"
-        />
+      <div v-for="node in treeData" :key="node.path" class="tree-node">
+        <FileNode :node="node" :depth="0" :project-path="projectPath" :on-toggle="handleToggle" :on-open="handleOpen" />
       </div>
     </div>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { electronApi } from '@/api/electron-api';
 import FileNode from '@/components/FileNode.vue';
 
 const props = defineProps<{ projectPath: string }>();
 
 const treeData = ref<any[]>([]);
+const loading = ref(true);
+
+const rootName = computed(() => {
+  const normalized = props.projectPath.replace(/\\/g, '/');
+  return normalized.split('/').pop() || props.projectPath;
+});
 
 interface FileNodeData {
   name: string;
@@ -41,7 +50,12 @@ interface FileNodeData {
 }
 
 onMounted(async () => {
-  treeData.value = await loadDir(props.projectPath, '');
+  loading.value = true;
+  try {
+    treeData.value = await loadDir(props.projectPath, '');
+  } finally {
+    loading.value = false;
+  }
 });
 
 async function loadDir(projectPath: string, relativePath: string): Promise<FileNodeData[]> {
@@ -93,13 +107,41 @@ async function handleOpen(node: FileNodeData): Promise<void> {
 <style scoped>
 .file-explorer {
   height: 100%;
-  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 18px;
   user-select: none;
 }
+
+.file-explorer-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.file-explorer-title {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  margin-top: 4px;
+}
+
+.file-explorer-hint {
+  color: var(--pm-text-tertiary);
+  font-size: 12px;
+}
+
+.file-tree {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  padding: 4px 6px 0 0;
+}
+
 .file-explorer-empty {
-  padding: 24px;
-  text-align: center;
-  color: #666;
-  font-size: 13px;
+  flex: 1;
+  min-height: 0;
 }
 </style>

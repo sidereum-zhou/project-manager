@@ -36,7 +36,10 @@ describe('Store', () => {
         addedAt: '2026-04-11T00:00:00Z',
         customStartCmd: null,
         customInstallCmd: null,
+        lastOpenedTab: 'overview',
+        lastAppliedSceneId: null,
       }],
+      workspaceScenes: [],
       settings: {
         defaultTerminalFont: 'Consolas',
         defaultTerminalFontSize: 14,
@@ -50,6 +53,7 @@ describe('Store', () => {
   it('should write atomically (no partial writes)', () => {
     store.save({
       projects: [{ id: '1', name: 'a', path: '/a', type: 'nodejs', addedAt: '2026-04-11T00:00:00Z' }],
+      workspaceScenes: [],
       settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
     });
     const filePath = store.getFilePath();
@@ -60,9 +64,46 @@ describe('Store', () => {
   it('should not corrupt data if write fails mid-way', () => {
     store.save({
       projects: [{ id: '1', name: 'a', path: '/a', type: 'nodejs', addedAt: '2026-04-11T00:00:00Z' }],
+      workspaceScenes: [],
       settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
     });
     const data = store.load();
     expect(data.projects[0].name).toBe('a');
+  });
+
+  it('should backfill workspace scenes for old data', () => {
+    store.save({
+      projects: [],
+      workspaceScenes: [],
+      settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
+    });
+
+    const rawPath = store.getFilePath();
+    fs.writeFileSync(rawPath, JSON.stringify({
+      projects: [],
+      settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
+    }), 'utf-8');
+
+    const reloaded = new Store(rawPath).load();
+    expect(reloaded.workspaceScenes).toEqual([]);
+  });
+
+  it('should backfill project workspace state for old data', () => {
+    const rawPath = store.getFilePath();
+    fs.writeFileSync(rawPath, JSON.stringify({
+      projects: [{
+        id: 'legacy-project',
+        name: 'legacy',
+        path: '/legacy',
+        type: 'nodejs',
+        addedAt: '2026-04-11T00:00:00Z',
+      }],
+      workspaceScenes: [],
+      settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
+    }), 'utf-8');
+
+    const reloaded = new Store(rawPath).load();
+    expect(reloaded.projects[0].lastOpenedTab).toBeNull();
+    expect(reloaded.projects[0].lastAppliedSceneId).toBeNull();
   });
 });
