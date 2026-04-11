@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { ref, computed, toRaw } from 'vue';
 import {
   NTabs, NTabPane, NButton, NTag, NDescriptions, NDescriptionsItem,
 } from 'naive-ui';
@@ -99,7 +99,7 @@ async function handleInstall(): Promise<void> {
   if (effectiveInstallCmd.value.length === 0) return;
   installing.value = true;
   try {
-    await electronApi.startProcess(`${props.project.id}-install`, props.project.path, effectiveInstallCmd.value);
+    await electronApi.startProcess(`${props.project.id}-install`, props.project.path, toRaw(effectiveInstallCmd.value));
   } finally {
     installing.value = false;
   }
@@ -110,7 +110,7 @@ async function handleStart(): Promise<void> {
   starting.value = true;
   isRunning.value = true;
   try {
-    await electronApi.startProcess(props.project.id, props.project.path, effectiveStartCmd.value);
+    await electronApi.startProcess(props.project.id, props.project.path, toRaw(effectiveStartCmd.value));
   } finally {
     starting.value = false;
   }
