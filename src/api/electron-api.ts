@@ -10,6 +10,35 @@ export interface DetectedProject {
   subProjects?: string[];
 }
 
+export interface GitCommit {
+  hash: string;
+  shortHash: string;
+  author: string;
+  email: string;
+  date: string;
+  message: string;
+}
+
+export interface GitFileChange {
+  path: string;
+  status: 'added' | 'modified' | 'deleted' | 'renamed';
+}
+
+export interface GitStatusResult {
+  branch: string;
+  ahead: number;
+  behind: number;
+  staged: GitFileChange[];
+  modified: GitFileChange[];
+  untracked: string[];
+}
+
+export interface GitBranch {
+  name: string;
+  isCurrent: boolean;
+  isRemote: boolean;
+}
+
 const api = window.electronAPI;
 
 export const electronApi = {
@@ -98,5 +127,46 @@ export const electronApi = {
 
   onTerminalExit(callback: (terminalId: string, exitCode: number) => void): void {
     api.onTerminalExit(callback);
+  },
+
+  // Git
+  async gitStatus(projectPath: string): Promise<GitStatusResult | null> {
+    return api.gitStatus(projectPath);
+  },
+
+  async gitLog(projectPath: string, maxCount?: number): Promise<GitCommit[]> {
+    return api.gitLog(projectPath, maxCount);
+  },
+
+  async gitDiff(projectPath: string, filePath?: string): Promise<string> {
+    return api.gitDiff(projectPath, filePath);
+  },
+
+  async gitAdd(projectPath: string, files: string[]): Promise<void> {
+    return api.gitAdd(projectPath, files);
+  },
+
+  async gitCommit(projectPath: string, message: string): Promise<void> {
+    return api.gitCommit(projectPath, message);
+  },
+
+  async gitPull(projectPath: string): Promise<{ status: string; summary: any }> {
+    return api.gitPull(projectPath);
+  },
+
+  async gitPush(projectPath: string): Promise<{ status: string; summary: string }> {
+    return api.gitPush(projectPath);
+  },
+
+  async gitCheckout(projectPath: string, branch: string): Promise<void> {
+    return api.gitCheckout(projectPath, branch);
+  },
+
+  async gitBranches(projectPath: string): Promise<GitBranch[]> {
+    return api.gitBranches(projectPath);
+  },
+
+  async gitShow(projectPath: string, hash: string): Promise<string> {
+    return api.gitShow(projectPath, hash);
   },
 };
