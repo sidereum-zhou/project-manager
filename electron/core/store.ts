@@ -34,7 +34,7 @@ const DEFAULT_DATA: StoreData = {
 
 export class Store {
   private filePath: string;
-  private data: StoreData | null = null;
+  private data!: StoreData;
 
   constructor(filePath: string) {
     this.filePath = filePath;
@@ -48,12 +48,12 @@ export class Store {
     if (this.data) return this.data;
 
     if (!fs.existsSync(this.filePath)) {
-      this.data = JSON.parse(JSON.stringify(DEFAULT_DATA));
+      this.data = { ...JSON.parse(JSON.stringify(DEFAULT_DATA)) };
       return this.data;
     }
 
     const raw = fs.readFileSync(this.filePath, 'utf-8');
-    this.data = JSON.parse(raw);
+    this.data = JSON.parse(raw) as StoreData;
     return this.data;
   }
 
