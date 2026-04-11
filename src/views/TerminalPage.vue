@@ -50,6 +50,12 @@ onMounted(async () => {
     createTerminal();
   }
 
+  terminal.onData((data) => {
+    if (currentTerminalId) {
+      electronApi.writeTerminal(currentTerminalId, data);
+    }
+  });
+
   electronApi.onTerminalData((terminalId: string, data: string) => {
     if (terminalId === currentTerminalId) {
       terminal.write(data);

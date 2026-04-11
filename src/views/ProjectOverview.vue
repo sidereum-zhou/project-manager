@@ -113,7 +113,9 @@ async function handleInstall(): Promise<void> {
 async function handleStart(): Promise<void> {
   if (effectiveStartCmd.value.length === 0) return;
   activeTab.value = 'terminal';
-  sendToTerminal(`cd "${props.project.path}" && ${effectiveStartCmd.value.join(' ')}`);
+  const cmd = effectiveStartCmd.value.join(' ');
+  console.log('[PM] sendToTerminal:', cmd);
+  sendToTerminal(cmd);
 }
 
 async function handleStop(): Promise<void> {
