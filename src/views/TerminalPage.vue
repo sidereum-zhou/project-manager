@@ -20,6 +20,9 @@ import 'xterm/css/xterm.css';
 import type { Project } from '@/types/project';
 
 const props = defineProps<{ project: Project }>();
+const emit = defineEmits<{
+  ready: [terminalId: string];
+}>();
 
 const containerRef = ref<HTMLElement>();
 const terminalRef = ref<HTMLElement>();
@@ -75,6 +78,7 @@ async function createTerminal(): Promise<void> {
   }
   terminal.clear();
   currentTerminalId = await electronApi.createTerminal(props.project.id, props.project.path);
+  emit('ready', currentTerminalId);
 }
 
 function clearTerminal(): void {

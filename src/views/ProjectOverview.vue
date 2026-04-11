@@ -9,22 +9,22 @@
         </div>
       </div>
       <div class="overview-actions">
-        <n-button size="small" :loading="installing" @click="handleInstall">
+        <n-button size="small" :disabled="!terminalId" @click="handleInstall">
           安装依赖
         </n-button>
-        <n-button type="success" size="small" :loading="starting" @click="handleStart">
+        <n-button type="success" size="small" :disabled="!terminalId" @click="handleStart">
           启动
         </n-button>
-        <n-button size="small" :disabled="!isRunning" @click="handleStop">
+        <n-button size="small" :disabled="!terminalId" @click="handleStop">
           停止
         </n-button>
-        <n-button size="small" :loading="starting" @click="handleRestart">
+        <n-button size="small" :disabled="!terminalId" @click="handleRestart">
           重启
         </n-button>
       </div>
     </div>
 
-    <n-tabs type="line" animated>
+    <n-tabs v-model:value="activeTab" type="line" animated>
       <n-tab-pane name="overview" tab="概览">
         <div class="overview-details">
           <n-descriptions bordered :column="2" label-placement="left">
@@ -44,7 +44,7 @@
         </div>
       </n-tab-pane>
       <n-tab-pane name="terminal" tab="终端">
-        <TerminalPage :project="project" />
+        <TerminalPage :project="project" @ready="onTerminalReady" />
       </n-tab-pane>
       <n-tab-pane name="files" tab="文件">
         <FileExplorer :project-path="project.path" />
@@ -57,7 +57,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, toRaw } from 'vue';
+import { ref, computed } from 'vue';
 import {
   NTabs, NTabPane, NButton, NTag, NDescriptions, NDescriptionsItem,
 } from 'naive-ui';
@@ -69,9 +69,8 @@ import SettingsPage from './SettingsPage.vue';
 
 const props = defineProps<{ project: Project }>();
 
-const installing = ref(false);
-const starting = ref(false);
-const isRunning = ref(false);
+const activeTab = ref('overview');
+const terminalId = ref<string | null>(null);
 
 const typeLabels: Record<string, string> = {
   nodejs: 'Node.js',
@@ -95,35 +94,37 @@ const tagType = computed(() => tagTypes[props.project.type] || 'default');
 const effectiveInstallCmd = computed(() => props.project.customInstallCmd || props.project.installCmd || []);
 const effectiveStartCmd = computed(() => props.project.customStartCmd || props.project.startCmd || []);
 
+function onTerminalReady(id: string): void {
+  terminalId.value = id;
+}
+
+function sendToTerminal(cmd: string): void {
+  if (!terminalId.value) return;
+  electronApi.writeTerminal(terminalId.value, cmd + '\r\n');
+}
+
 async function handleInstall(): Promise<void> {
   if (effectiveInstallCmd.value.length === 0) return;
-  installing.value = true;
-  try {
-    await electronApi.startProcess(`${props.project.id}-install`, props.project.path, toRaw(effectiveInstallCmd.value));
-  } finally {
-    installing.value = false;
-  }
+  activeTab.value = 'terminal';
+  // cd to project dir then run install command
+  sendToTerminal(`cd "${props.project.path}" && ${effectiveInstallCmd.value.join(' ')}`);
 }
 
 async function handleStart(): Promise<void> {
   if (effectiveStartCmd.value.length === 0) return;
-  starting.value = true;
-  isRunning.value = true;
-  try {
-    await electronApi.startProcess(props.project.id, props.project.path, toRaw(effectiveStartCmd.value));
-  } finally {
-    starting.value = false;
-  }
+  activeTab.value = 'terminal';
+  sendToTerminal(`cd "${props.project.path}" && ${effectiveStartCmd.value.join(' ')}`);
 }
 
 async function handleStop(): Promise<void> {
-  await electronApi.stopProcess(props.project.id);
-  isRunning.value = false;
+  // Send Ctrl+C to the terminal
+  if (!terminalId.value) return;
+  electronApi.writeTerminal(terminalId.value, '\x03');
 }
 
 async function handleRestart(): Promise<void> {
   await handleStop();
-  await handleStart();
+  setTimeout(() => handleStart(), 500);
 }
 </script>
 
