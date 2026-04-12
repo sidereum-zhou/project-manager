@@ -78,3 +78,6 @@ code, pre, .pm-code { font-family: var(--pm-font-code); }
   border-radius: var(--pm-radius-sm); background: var(--pm-surface-container-high);
   border: none; color: var(--pm-text-secondary); font-size: 0.6875rem; font-weight: 600;
 }
+.material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+}

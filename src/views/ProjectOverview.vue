@@ -1,75 +1,116 @@
 <template>
   <div class="overview">
-    <section class="overview-hero pm-panel">
-      <div class="overview-hero-copy">
-        <span class="pm-kicker">Active Project</span>
-        <div class="overview-title-row">
-          <h2 class="overview-title">{{ project.name }}</h2>
-          <n-tag :type="tagType" size="small" round>{{ typeLabel }}</n-tag>
-        </div>
-        <p class="overview-path">{{ project.path }}</p>
-        <div class="overview-pills">
-          <span class="pm-pill">{{ project.packageManager || '未识别包管理器' }}</span>
-          <span class="pm-pill">{{ addedAtLabel }}</span>
-          <span v-if="project.version" class="pm-pill">v{{ project.version }}</span>
-          <span class="pm-pill">{{ workspaceLabel }}</span>
-          <span class="pm-pill">{{ serviceLabel }}</span>
-        </div>
-      </div>
-
-      <div class="overview-actions">
-        <n-button size="medium" :disabled="!terminalId" @click="handleInstall">
-          <template #icon>
-            <n-icon :component="DownloadOutline" />
-          </template>
-          安装依赖
-        </n-button>
-        <n-button type="primary" size="medium" :disabled="!terminalId" @click="handleStart">
-          <template #icon>
-            <n-icon :component="PlayOutline" />
-          </template>
-          启动项目
-        </n-button>
-        <n-button size="medium" :disabled="!terminalId" @click="handleStop">
-          <template #icon>
-            <n-icon :component="StopOutline" />
-          </template>
-          停止
-        </n-button>
-        <n-button size="medium" :disabled="!terminalId" @click="handleRestart">
-          <template #icon>
-            <n-icon :component="RefreshOutline" />
-          </template>
-          重启
-        </n-button>
-      </div>
-    </section>
-
-    <section class="overview-metrics">
-      <article
-        v-for="card in summaryCards"
-        :key="card.label"
-        class="overview-metric pm-panel"
-      >
-        <span class="overview-metric-label">{{ card.label }}</span>
-        <strong class="overview-metric-value pm-code">{{ card.value }}</strong>
-        <p class="overview-metric-copy">{{ card.copy }}</p>
-      </article>
-    </section>
-
-    <n-tabs v-model:value="activeTab" type="line" animated class="overview-tabs">
+    <!-- Main Content -->
+    <div class="overview-main">
+      <n-tabs v-model:value="activeTab" type="line" animated class="overview-tabs">
       <n-tab-pane name="overview" tab="概览">
         <div class="overview-tab overview-tab--scroll">
-          <div class="overview-grid">
-            <section class="overview-section pm-panel">
-              <div class="pm-panel-header">
+          <!-- Bento Metrics Grid -->
+          <section class="bento-grid">
+            <article class="bento-card">
+              <div class="bento-card-header">
+                <span class="bento-card-label">Git 状态</span>
+                <span class="bento-card-icon bento-card-icon--primary"><span class="material-symbols-outlined">account_tree</span></span>
+              </div>
+              <div class="bento-card-value">
+                {{ gitBranch || '未检测到' }}
+                <span v-if="gitStatusData" class="bento-card-badge" :class="gitBadgeClass">
+                  {{ gitChangeCount }} 变更
+                </span>
+              </div>
+              <div class="bento-card-bar">
+                <div class="bento-card-bar-fill" :style="{ width: gitBarWidth }"></div>
+              </div>
+              <p class="bento-card-meta">
+                <template v-if="gitStatusData">
+                  <span>{{ gitStatusData.staged.length }} 暂存</span>
+                  <span>·</span>
+                  <span>{{ gitStatusData.modified.length }} 修改</span>
+                  <template v-if="gitStatusData.untracked.length > 0">
+                    <span>·</span>
+                    <span>{{ gitStatusData.untracked.length }} 新文件</span>
+                  </template>
+                </template>
+                <template v-else>无 Git 仓库或无法读取</template>
+              </p>
+            </article>
+
+            <article class="bento-card">
+              <div class="bento-card-header">
+                <span class="bento-card-label">服务编排</span>
+                <span class="bento-card-icon bento-card-icon--tertiary"><span class="material-symbols-outlined">layers</span></span>
+              </div>
+              <div class="bento-card-value">{{ services.length }}<span class="bento-card-unit">个服务</span></div>
+              <div class="bento-card-bar">
+                <div class="bento-card-bar-fill bento-card-bar-fill--tertiary" :style="{ width: serviceBarWidth }"></div>
+              </div>
+              <p class="bento-card-meta">{{ autoStartCount }} 个标记自动启动</p>
+            </article>
+
+            <article class="bento-card">
+              <div class="bento-card-header">
+                <span class="bento-card-label">项目类型</span>
+                <span class="bento-card-icon bento-card-icon--primary"><span class="material-symbols-outlined">category</span></span>
+              </div>
+              <div class="bento-card-value">{{ typeLabel }}</div>
+              <div class="bento-card-bar">
+                <div class="bento-card-bar-fill" :style="{ width: '60%' }"></div>
+              </div>
+              <p class="bento-card-meta">{{ project.packageManager || '未识别包管理器' }} · v{{ project.version || '—' }}</p>
+            </article>
+
+            <article class="bento-card">
+              <div class="bento-card-header">
+                <span class="bento-card-label">仓库结构</span>
+                <span class="bento-card-icon bento-card-icon--tertiary"><span class="material-symbols-outlined">folder_open</span></span>
+              </div>
+              <div class="bento-card-value">{{ subProjects.length }}<span class="bento-card-unit">个子项目</span></div>
+              <div class="bento-card-bar">
+                <div class="bento-card-bar-fill bento-card-bar-fill--tertiary" :style="{ width: subProjectBarWidth }"></div>
+              </div>
+              <p class="bento-card-meta">{{ workspaceLabel }}</p>
+            </article>
+          </section>
+
+          <!-- Activity + Quick Info Row -->
+          <section class="overview-content-row">
+            <!-- Recent Activity -->
+            <div class="overview-activity pm-panel">
+              <div class="pm-panel-header" style="margin-bottom: 16px;">
+                <div>
+                  <p class="pm-kicker">Activity</p>
+                  <h3 class="pm-panel-title">最近提交</h3>
+                </div>
+              </div>
+              <div v-if="recentCommits.length > 0" class="activity-list">
+                <div v-for="commit in recentCommits" :key="commit.hash" class="activity-item">
+                  <div class="activity-item-icon">
+                    <span class="material-symbols-outlined">commit</span>
+                  </div>
+                  <div class="activity-item-body">
+                    <div class="activity-item-title">{{ commit.message.split('\n')[0] }}</div>
+                    <div class="activity-item-meta">
+                      <span>{{ commit.author }}</span>
+                      <span>·</span>
+                      <span>{{ formatRelativeTime(commit.date) }}</span>
+                    </div>
+                  </div>
+                  <code class="activity-item-hash">{{ commit.shortHash }}</code>
+                </div>
+              </div>
+              <div v-else class="overview-placeholder" style="min-height: 120px;">
+                无法读取提交历史，请确认项目目录下有 Git 仓库。
+              </div>
+            </div>
+
+            <!-- Quick Commands -->
+            <div class="overview-quick-cmd pm-panel">
+              <div class="pm-panel-header" style="margin-bottom: 16px;">
                 <div>
                   <p class="pm-kicker">Runtime</p>
                   <h3 class="pm-panel-title">命令与执行</h3>
                 </div>
-                <span class="overview-section-note">顶部操作会把命令直接写入集成终端。</span>
               </div>
-
               <div class="overview-command-list">
                 <div
                   v-for="item in commandItems"
@@ -78,68 +119,46 @@
                 >
                   <span class="overview-command-label">{{ item.label }}</span>
                   <code class="overview-command-value">{{ item.value }}</code>
-                  <p class="overview-command-copy">{{ item.copy }}</p>
                 </div>
               </div>
-            </section>
+              <div style="margin-top: 16px;">
+                <p class="pm-kicker" style="margin-bottom: 10px;">项目画像</p>
+                <div class="overview-facts">
+                  <div v-for="item in detailItems" :key="item.label" class="overview-fact">
+                    <span class="overview-fact-label">{{ item.label }}</span>
+                    <strong class="overview-fact-value">{{ item.value }}</strong>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
 
-            <section class="overview-section pm-panel">
-              <div class="pm-panel-header">
-                <div>
-                  <p class="pm-kicker">Metadata</p>
-                  <h3 class="pm-panel-title">项目画像</h3>
-                </div>
+          <!-- Footer Status -->
+          <footer class="overview-footer">
+            <div class="overview-footer-stats">
+              <div class="overview-footer-stat">
+                <span class="overview-footer-dot overview-footer-dot--ok"></span>
+                <span>添加于 {{ addedAtLabel }}</span>
               </div>
-
-              <div class="overview-facts">
-                <div v-for="item in detailItems" :key="item.label" class="overview-fact">
-                  <span class="overview-fact-label">{{ item.label }}</span>
-                  <strong class="overview-fact-value">{{ item.value }}</strong>
-                </div>
+              <div class="overview-footer-stat">
+                <span class="material-symbols-outlined overview-footer-icon">dns</span>
+                <span>{{ typeLabel }} 项目</span>
               </div>
-            </section>
-
-            <section class="overview-section overview-section-wide pm-panel">
-              <div class="pm-panel-header">
-                <div>
-                  <p class="pm-kicker">Structure</p>
-                  <h3 class="pm-panel-title">项目结构</h3>
-                </div>
-                <span class="overview-section-note">用于识别单仓库或多子项目工作流。</span>
+              <div class="overview-footer-stat">
+                <span class="material-symbols-outlined overview-footer-icon">hub</span>
+                <span>{{ workspaceLabel }}</span>
               </div>
-
-              <div v-if="subProjects.length > 0" class="overview-subprojects">
-                <div v-for="name in subProjects" :key="name" class="overview-subproject">
-                  {{ name }}
-                </div>
-              </div>
-              <div v-else class="overview-placeholder">
-                当前没有记录子项目，适合直接使用文件树和 Git 面板进行单仓库管理。
-              </div>
-            </section>
-
-            <section class="overview-section pm-panel">
-              <div class="pm-panel-header">
-                <div>
-                  <p class="pm-kicker">Workflow</p>
-                  <h3 class="pm-panel-title">面板分工</h3>
-                </div>
-              </div>
-
-              <div class="overview-workflow">
-                <div v-for="item in workflowItems" :key="item.label" class="overview-workflow-item">
-                  <span class="overview-workflow-label">{{ item.label }}</span>
-                  <p class="overview-workflow-copy">{{ item.copy }}</p>
-                </div>
-              </div>
-            </section>
-          </div>
+            </div>
+            <div class="overview-footer-note">
+              项目路径: {{ project.path }}
+            </div>
+          </footer>
         </div>
       </n-tab-pane>
 
       <n-tab-pane name="terminal" tab="终端">
         <div class="overview-tab">
-          <TerminalPage :project="project" @ready="onTerminalReady" />
+          <TerminalPage :project="project" :existing-terminal-id="terminalId" @ready="onTerminalReady" />
         </div>
       </n-tab-pane>
 
@@ -184,11 +203,72 @@
         </div>
       </n-tab-pane>
     </n-tabs>
+    </div>
+
+    <!-- Right Sidebar: collapsed by default -->
+    <aside class="overview-sidebar" :class="{ 'overview-sidebar--open': sidebarOpen }">
+      <div class="overview-sidebar-content">
+        <div class="overview-sidebar-header">
+          <div class="overview-sidebar-copy">
+            <span class="pm-kicker">Active Project</span>
+            <h2 class="overview-title">{{ project.name }}</h2>
+            <n-tag :type="tagType" size="small" round>{{ typeLabel }}</n-tag>
+          </div>
+          <button class="overview-sidebar-close" @click="sidebarOpen = false">
+            <span class="material-symbols-outlined">close</span>
+          </button>
+        </div>
+
+        <p class="overview-path">{{ project.path }}</p>
+
+        <div class="overview-pills">
+          <span class="pm-pill">{{ project.packageManager || '未识别包管理器' }}</span>
+          <span class="pm-pill">{{ addedAtLabel }}</span>
+          <span v-if="project.version" class="pm-pill">v{{ project.version }}</span>
+          <span class="pm-pill">{{ workspaceLabel }}</span>
+          <span class="pm-pill">{{ serviceLabel }}</span>
+        </div>
+
+        <div class="overview-sidebar-divider"></div>
+
+        <div class="overview-actions">
+          <n-button size="medium" block @click="handleInstall">
+            <template #icon>
+              <n-icon :component="DownloadOutline" />
+            </template>
+            安装依赖
+          </n-button>
+          <n-button type="primary" size="medium" block @click="handleStart">
+            <template #icon>
+              <n-icon :component="PlayOutline" />
+            </template>
+            启动项目
+          </n-button>
+          <n-button size="medium" block @click="handleStop">
+            <template #icon>
+              <n-icon :component="StopOutline" />
+            </template>
+            停止
+          </n-button>
+          <n-button size="medium" block @click="handleRestart">
+            <template #icon>
+              <n-icon :component="RefreshOutline" />
+            </template>
+            重启
+          </n-button>
+        </div>
+      </div>
+    </aside>
+
+    <!-- Toggle button (visible when sidebar closed) -->
+    <button class="overview-sidebar-toggle" :class="{ 'overview-sidebar-toggle--hidden': sidebarOpen }" @click="sidebarOpen = true">
+      <span class="material-symbols-outlined">info</span>
+    </button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue';
+import { ref, computed, watch, onMounted } from 'vue';
 import { NTabs, NTabPane, NButton, NTag, NIcon, useMessage } from 'naive-ui';
 import {
   DownloadOutline,
@@ -197,6 +277,7 @@ import {
   RefreshOutline,
 } from '@vicons/ionicons5';
 import type { Project, ProjectTab, WorkspaceScene } from '@/types/project';
+import type { GitCommit, GitStatusResult } from '@/api/electron-api';
 import { electronApi } from '@/api/electron-api';
 import { useProjectStore } from '@/stores/projects';
 import TerminalPage from './TerminalPage.vue';
@@ -212,18 +293,57 @@ const props = defineProps<{ project: Project }>();
 const message = useMessage();
 const projectStore = useProjectStore();
 const activeTab = ref<ProjectTab>(props.project.lastOpenedTab || 'overview');
+const sidebarOpen = ref(false);
 const terminalId = ref<string | null>(null);
 const pendingTerminalCommands = ref<string[] | null>(null);
 
-watch(activeTab, (tab) => {
-  if (props.project.lastOpenedTab === tab) return;
-  void projectStore.updateProject(props.project.id, { lastOpenedTab: tab });
+// Git data
+const gitBranch = ref('');
+const gitStatusData = ref<GitStatusResult | null>(null);
+const recentCommits = ref<GitCommit[]>([]);
+
+async function ensureTerminal(): Promise<string> {
+  if (terminalId.value) return terminalId.value;
+  const id = await electronApi.createTerminal(props.project.id, props.project.path);
+  terminalId.value = id;
+  return id;
+}
+
+async function loadGitData(): Promise<void> {
+  try {
+    const status = await electronApi.gitStatus(props.project.path);
+    if (status) {
+      gitBranch.value = status.branch;
+      gitStatusData.value = status;
+    }
+  } catch { /* not a git repo */ }
+
+  try {
+    const commits = await electronApi.gitLog(props.project.path, 6);
+    recentCommits.value = commits || [];
+  } catch { /* ignore */ }
+}
+
+onMounted(() => {
+  void loadGitData();
+  // Pre-create terminal so sidebar buttons work immediately
+  void ensureTerminal();
 });
 
 watch(() => props.project.id, () => {
   activeTab.value = props.project.lastOpenedTab || 'overview';
   terminalId.value = null;
   pendingTerminalCommands.value = null;
+  gitBranch.value = '';
+  gitStatusData.value = null;
+  recentCommits.value = [];
+  void loadGitData();
+  void ensureTerminal();
+});
+
+watch(activeTab, (tab) => {
+  if (props.project.lastOpenedTab === tab) return;
+  void projectStore.updateProject(props.project.id, { lastOpenedTab: tab });
 });
 
 const typeLabels: Record<string, string> = {
@@ -259,30 +379,18 @@ const serviceLabel = computed(() => {
   return `${services.value.length} 个服务 · ${autoStartCount.value} 个自动`;
 });
 
-const summaryCards = computed(() => [
-  {
-    label: '安装命令',
-    value: formatCommand(effectiveInstallCmd.value),
-    copy: effectiveInstallCmd.value.length ? '适合依赖同步与环境初始化。' : '当前项目未识别安装命令。',
-  },
-  {
-    label: '启动命令',
-    value: formatCommand(effectiveStartCmd.value),
-    copy: effectiveStartCmd.value.length ? '将直接发送到终端面板执行。' : '当前项目未识别启动命令。',
-  },
-  {
-    label: '仓库结构',
-    value: workspaceLabel.value,
-    copy: subProjects.value.length ? '适合从文件树快速切换子模块。' : '结构简洁，适合集中操作。 ',
-  },
-  {
-    label: '服务编排',
-    value: services.value.length > 0 ? `${services.value.length} 个服务` : '未配置',
-    copy: services.value.length
-      ? `${autoStartCount.value} 个标记为自动服务，可在服务页统一编排与查看日志。`
-      : '可以把 web、api、worker 拆成独立服务统一管理。',
-  },
-]);
+const gitChangeCount = computed(() => {
+  if (!gitStatusData.value) return 0;
+  return gitStatusData.value.staged.length + gitStatusData.value.modified.length + gitStatusData.value.untracked.length;
+});
+const gitBadgeClass = computed(() => gitChangeCount.value > 0 ? 'bento-card-badge--warn' : 'bento-card-badge--ok');
+const gitBarWidth = computed(() => {
+  if (!gitStatusData.value) return '0%';
+  const total = Math.max(gitChangeCount.value, 1);
+  return `${Math.min((total / 20) * 100, 100)}%`;
+});
+const serviceBarWidth = computed(() => services.value.length > 0 ? `${(autoStartCount.value / services.value.length) * 100}%` : '0%');
+const subProjectBarWidth = computed(() => `${Math.min(subProjects.value.length * 15, 100)}%`);
 
 const commandItems = computed(() => [
   {
@@ -309,15 +417,23 @@ const detailItems = computed(() => [
   { label: '添加时间', value: addedAtLabel.value },
 ]);
 
-const workflowItems = [
-  { label: '场景', copy: '保存一组工作区状态，把常用面板和命令封装成可以重复应用的流程。' },
-  { label: '服务', copy: '集中管理多个本地服务的启动、停止、重启和实时日志输出。' },
-  { label: '终端', copy: '执行安装、启动、重启和手动命令，适合持续观察输出。' },
-  { label: '文件', copy: '浏览源码目录，展开层级并双击直接打开文件。' },
-  { label: 'Git', copy: '查看当前分支、变更文件、提交历史和可切换分支。' },
-  { label: '架构图', copy: '基于本地配置分析依赖关系，帮助快速理解项目结构。' },
-  { label: '设置', copy: '维护默认终端字体、字号以及本地项目数据。' },
-];
+function formatRelativeTime(dateStr: string): string {
+  try {
+    const now = Date.now();
+    const then = new Date(dateStr).getTime();
+    const diffMs = now - then;
+    const diffMin = Math.floor(diffMs / 60000);
+    if (diffMin < 1) return '刚刚';
+    if (diffMin < 60) return `${diffMin} 分钟前`;
+    const diffHr = Math.floor(diffMin / 60);
+    if (diffHr < 24) return `${diffHr} 小时前`;
+    const diffDay = Math.floor(diffHr / 24);
+    if (diffDay < 30) return `${diffDay} 天前`;
+    return new Date(dateStr).toLocaleDateString('zh-CN');
+  } catch {
+    return dateStr;
+  }
+}
 
 function onTerminalReady(id: string): void {
   terminalId.value = id;
@@ -331,23 +447,26 @@ function sendToTerminal(cmd: string): void {
 
 async function handleInstall(): Promise<void> {
   if (effectiveInstallCmd.value.length === 0) return;
-  runCommands(effectiveInstallCmd.value.map(command => command).join(' '));
+  await ensureTerminal();
+  runCommands(effectiveInstallCmd.value.join(' '));
 }
 
 async function handleStart(): Promise<void> {
   if (effectiveStartCmd.value.length === 0) return;
-  runCommands(effectiveStartCmd.value.map(command => command).join(' '));
+  await ensureTerminal();
+  runCommands(effectiveStartCmd.value.join(' '));
 }
 
 async function handleStop(): Promise<void> {
-  if (!terminalId.value) return;
-  electronApi.writeTerminal(terminalId.value, '\x03');
+  await ensureTerminal();
+  electronApi.writeTerminal(terminalId.value!, '\x03');
 }
 
 async function handleRestart(): Promise<void> {
   await handleStop();
-  setTimeout(() => {
+  setTimeout(async () => {
     if (effectiveStartCmd.value.length > 0) {
+      await ensureTerminal();
       runCommands(effectiveStartCmd.value.join(' '));
     }
   }, 500);
@@ -423,86 +542,445 @@ function formatDate(value: string): string {
 <style scoped>
 .overview {
   display: flex;
-  flex-direction: column;
-  gap: 16px;
   height: 100%;
-  padding: 24px;
+  overflow: hidden;
+  position: relative;
+}
+
+/* Main content area */
+.overview-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  padding: 20px 24px;
   box-sizing: border-box;
 }
-.overview-hero {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 20px 24px;
-}
-.overview-hero-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-.overview-title-row {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
+
+/* Hero (now in sidebar) */
 .overview-title {
-  font-size: 1.5rem;
-  line-height: 1.1;
+  font-size: 1.125rem;
+  line-height: 1.2;
   font-weight: 700;
   color: var(--pm-text-primary);
-  letter-spacing: -0.02em;
+  letter-spacing: -0.01em;
 }
 .overview-path {
   color: var(--pm-text-secondary);
-  font-size: 0.75rem;
+  font-size: 0.6875rem;
   line-height: 1.6;
   word-break: break-all;
+  margin-top: 8px;
 }
 .overview-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: 6px;
+  margin-top: 10px;
 }
 .overview-actions {
   display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
+  flex-direction: column;
   gap: 8px;
-  max-width: 420px;
 }
-.overview-metrics {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 12px;
+
+/* Right Sidebar */
+.overview-sidebar {
+  width: 0;
+  flex-shrink: 0;
+  background: var(--pm-surface-container-lowest);
+  border-left: 1px solid rgba(172, 179, 180, 0.15);
+  overflow: hidden;
+  transition: width 0.25s ease;
 }
-.overview-metric {
+.overview-sidebar--open {
+  width: 280px;
+}
+.overview-sidebar-content {
+  width: 280px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  height: 100%;
+  overflow-y: auto;
+}
+.overview-sidebar-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+.overview-sidebar-copy {
   display: flex;
   flex-direction: column;
   gap: 6px;
-  min-height: 120px;
-  padding: 16px 20px;
+  min-width: 0;
 }
-.overview-metric-label {
+.overview-sidebar-close {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: var(--pm-radius-sm);
+  background: transparent;
+  color: var(--pm-text-tertiary);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s;
+}
+.overview-sidebar-close:hover {
+  background: var(--pm-surface-container-low);
+  color: var(--pm-text-primary);
+}
+.overview-sidebar-close .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  font-size: 1.1rem;
+}
+.overview-sidebar-divider {
+  height: 1px;
+  background: rgba(172, 179, 180, 0.15);
+  margin: 12px 0;
+}
+
+/* Sidebar Toggle Button */
+.overview-sidebar-toggle {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 10;
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: none;
+  border-radius: var(--pm-radius-sm);
+  background: var(--pm-surface-container-lowest);
+  box-shadow: var(--pm-shadow-card);
+  color: var(--pm-text-secondary);
+  cursor: pointer;
+  transition: all 0.25s ease;
+  opacity: 1;
+}
+.overview-sidebar-toggle:hover {
+  color: var(--pm-primary);
+  box-shadow: var(--pm-shadow-vapor);
+}
+.overview-sidebar-toggle .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  font-size: 1.1rem;
+}
+.overview-sidebar-toggle--hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Bento Grid */
+.bento-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+.bento-card {
+  background: var(--pm-surface-container-lowest);
+  border: 1px solid rgba(172, 179, 180, 0.15);
+  border-radius: var(--pm-radius-md);
+  box-shadow: var(--pm-shadow-card);
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.bento-card-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 2px;
+}
+.bento-card-label {
   font-size: 0.6875rem;
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
   color: var(--pm-text-tertiary);
 }
-.overview-metric-value {
-  font-size: 1.25rem;
-  line-height: 1.4;
+.bento-card-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: var(--pm-radius-sm);
+  display: grid;
+  place-items: center;
+  font-size: 1.1rem;
+}
+.bento-card-icon .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  font-size: 1.1rem;
+}
+.bento-card-icon--primary {
+  background: rgba(0, 83, 219, 0.08);
+  color: var(--pm-primary);
+}
+.bento-card-icon--tertiary {
+  background: rgba(98, 91, 119, 0.08);
+  color: var(--pm-tertiary);
+}
+.bento-card-value {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
   color: var(--pm-text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.bento-card-unit {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--pm-text-secondary);
+}
+.bento-card-badge {
+  font-size: 0.625rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 10px;
+  letter-spacing: 0.02em;
+}
+.bento-card-badge--ok {
+  background: var(--pm-success-bg);
+  color: var(--pm-success);
+}
+.bento-card-badge--warn {
+  background: var(--pm-warning-bg);
+  color: var(--pm-warning);
+}
+.bento-card-bar {
+  height: 4px;
+  width: 100%;
+  background: var(--pm-surface-container);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+.bento-card-bar-fill {
+  height: 100%;
+  background: var(--pm-primary);
+  border-radius: 2px;
+  transition: width 0.3s ease;
+}
+.bento-card-bar-fill--tertiary {
+  background: var(--pm-tertiary);
+}
+.bento-card-meta {
+  font-size: 0.6875rem;
+  color: var(--pm-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+/* Content Row: Activity + Quick Commands */
+.overview-content-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  min-height: 0;
+}
+
+/* Activity */
+.overview-activity {
+  padding: 20px;
+  overflow: auto;
+}
+.activity-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.activity-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--pm-radius-sm);
+  transition: background 0.15s;
+}
+.activity-item:hover {
+  background: var(--pm-surface-container-low);
+}
+.activity-item-icon {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--pm-surface-container-low);
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+}
+.activity-item-icon .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  font-size: 1rem;
+  color: var(--pm-primary);
+}
+.activity-item-body {
+  flex: 1;
+  min-width: 0;
+}
+.activity-item-title {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--pm-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.activity-item-meta {
+  font-size: 0.6875rem;
+  color: var(--pm-text-secondary);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+.activity-item-hash {
+  font-family: var(--pm-font-code);
+  font-size: 0.6875rem;
+  color: var(--pm-text-tertiary);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+
+/* Quick Commands */
+.overview-quick-cmd {
+  padding: 20px;
+  overflow: auto;
+}
+
+/* Commands */
+.overview-command-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.overview-command-item {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 12px 16px;
+  border-radius: var(--pm-radius-sm);
+  background: var(--pm-surface-container-low);
+  border: none;
+}
+.overview-command-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pm-text-tertiary);
+}
+.overview-command-value {
+  font-family: var(--pm-font-code);
+  font-size: 0.75rem;
+  line-height: 1.6;
+  color: var(--pm-text-primary);
+  white-space: pre-wrap;
   word-break: break-word;
 }
-.overview-metric-copy {
+
+/* Facts */
+.overview-facts {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+.overview-fact {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 10px 14px;
+  border-radius: var(--pm-radius-sm);
+  background: var(--pm-surface-container-low);
+}
+.overview-fact-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--pm-text-tertiary);
+}
+.overview-fact-value {
+  font-size: 0.8125rem;
+  color: var(--pm-text-primary);
+  word-break: break-word;
+  font-weight: 500;
+}
+
+/* Placeholder */
+.overview-placeholder {
+  min-height: 100px;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  border-radius: var(--pm-radius-md);
+  border: 1px dashed rgba(172, 179, 180, 0.3);
+  background: transparent;
   color: var(--pm-text-secondary);
-  line-height: 1.5;
+  text-align: center;
+  line-height: 1.6;
   font-size: 0.75rem;
 }
+
+/* Footer */
+.overview-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 12px 20px;
+  border-top: 1px solid rgba(172, 179, 180, 0.15);
+  flex-shrink: 0;
+}
+.overview-footer-stats {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.overview-footer-stat {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  color: var(--pm-text-secondary);
+}
+.overview-footer-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.overview-footer-dot--ok {
+  background: var(--pm-success);
+}
+.overview-footer-icon {
+  font-size: 0.9rem;
+  color: var(--pm-text-tertiary);
+}
+.overview-footer-icon .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+}
+.overview-footer-note {
+  font-size: 0.625rem;
+  color: var(--pm-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 400px;
+}
+
+/* Tabs */
 .overview-tabs { flex: 1; min-height: 0; }
 .overview-tabs :deep(.n-tabs-nav) { margin-bottom: 0; }
 .overview-tabs :deep(.n-tabs-tab) {
@@ -518,111 +996,18 @@ function formatDate(value: string): string {
 .overview-tabs :deep(.n-tabs-pane-wrapper),
 .overview-tabs :deep(.n-tab-pane),
 .overview-tabs :deep(.n-tabs-content) { height: 100%; }
-.overview-tab { height: 100%; padding-top: 16px; min-height: 0; }
-.overview-tab--scroll { overflow: auto; padding-right: 4px; }
-.overview-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-.overview-section {
-  display: flex;
-  flex-direction: column;
-  gap: 14px;
-  padding: 20px;
-}
-.overview-section-wide { grid-column: span 2; }
-.overview-section-note { color: var(--pm-text-tertiary); font-size: 0.6875rem; }
-.overview-command-list,
-.overview-workflow { display: flex; flex-direction: column; gap: 8px; }
-.overview-command-item,
-.overview-workflow-item {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 16px;
-  border-radius: var(--pm-radius-sm);
-  background: var(--pm-surface-container-low);
-  border: none;
-}
-.overview-command-label,
-.overview-workflow-label,
-.overview-fact-label {
-  font-size: 0.6875rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--pm-text-tertiary);
-}
-.overview-command-value {
-  font-family: var(--pm-font-code);
-  font-size: 0.75rem;
-  line-height: 1.6;
-  color: var(--pm-text-primary);
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-.overview-command-copy,
-.overview-workflow-copy {
-  font-size: 0.6875rem;
-  color: var(--pm-text-secondary);
-  line-height: 1.5;
-}
-.overview-facts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-.overview-fact {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  padding: 12px 16px;
-  border-radius: var(--pm-radius-sm);
-  background: var(--pm-surface-container-low);
-}
-.overview-fact-value {
-  font-size: 0.8125rem;
-  color: var(--pm-text-primary);
-  word-break: break-word;
-  font-weight: 500;
-}
-.overview-subprojects { display: flex; flex-wrap: wrap; gap: 8px; }
-.overview-subproject {
-  display: inline-flex;
-  align-items: center;
-  height: 28px;
-  padding: 0 12px;
-  border-radius: var(--pm-radius-sm);
-  background: rgba(0, 83, 219, 0.06);
-  border: none;
-  color: var(--pm-primary);
-  font-size: 0.75rem;
-  font-weight: 600;
-}
-.overview-placeholder {
-  min-height: 100px;
-  display: grid;
-  place-items: center;
-  padding: 24px;
-  border-radius: var(--pm-radius-md);
-  border: 1px dashed rgba(172, 179, 180, 0.3);
-  background: transparent;
-  color: var(--pm-text-secondary);
-  text-align: center;
-  line-height: 1.6;
-  font-size: 0.75rem;
-}
+.overview-tab { height: 100%; padding-top: 12px; min-height: 0; }
+.overview-tab--scroll { overflow-y: auto; }
+
 @media (max-width: 1080px) {
-  .overview-hero, .overview-grid { grid-template-columns: 1fr; }
-  .overview-hero { flex-direction: column; }
-  .overview-actions { justify-content: flex-start; max-width: none; }
-  .overview-metrics { grid-template-columns: 1fr; }
-  .overview-section-wide { grid-column: span 1; }
+  .bento-grid { grid-template-columns: repeat(2, 1fr); }
+  .overview-content-row { grid-template-columns: 1fr; }
 }
 @media (max-width: 720px) {
   .overview { padding: 16px; }
+  .bento-grid { grid-template-columns: 1fr; }
   .overview-facts { grid-template-columns: 1fr; }
   .overview-title { font-size: 1.25rem; }
+  .overview-footer { flex-direction: column; align-items: flex-start; }
 }
 </style>

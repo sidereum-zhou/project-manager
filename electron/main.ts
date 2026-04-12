@@ -7,6 +7,7 @@ import { registerProcessIpc } from './ipc/process.ipc';
 import { registerTerminalIpc } from './ipc/terminal.ipc';
 import { registerGitIpc } from './ipc/git.ipc';
 import { registerWorkspaceIpc } from './ipc/workspace.ipc';
+import { registerSystemIpc } from './ipc/system.ipc';
 
 let mainWindow: BrowserWindow | null = null;
 let processManager: ProcessManager;
@@ -21,6 +22,7 @@ function initApp(): void {
   registerTerminalIpc();
   registerGitIpc();
   registerWorkspaceIpc(store);
+  registerSystemIpc();
 }
 
 function createWindow(): void {

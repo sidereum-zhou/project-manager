@@ -53,7 +53,7 @@ import { electronApi } from '@/api/electron-api';
 import 'xterm/css/xterm.css';
 import type { Project } from '@/types/project';
 
-const props = defineProps<{ project: Project }>();
+const props = defineProps<{ project: Project; existingTerminalId?: string | null }>();
 const emit = defineEmits<{
   ready: [terminalId: string];
 }>();
@@ -107,7 +107,12 @@ onMounted(async () => {
   if (terminalRef.value) {
     terminal.open(terminalRef.value);
     fitAddon.fit();
-    await createTerminal();
+    if (props.existingTerminalId) {
+      currentTerminalId.value = props.existingTerminalId;
+      emit('ready', currentTerminalId.value);
+    } else {
+      await createTerminal();
+    }
   }
 
   terminal.onData((data) => {

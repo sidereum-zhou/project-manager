@@ -9,13 +9,12 @@
     </div>
 
     <template v-else>
-      <section class="git-topbar pm-panel">
+      <section class="git-topbar">
         <div class="git-topbar-main">
           <div class="git-branch-pill">
-            <n-icon size="16" :component="GitBranchOutline" />
+            <n-icon size="14" :component="GitBranchOutline" />
             <span class="git-branch-name">{{ status?.branch || 'unknown' }}</span>
           </div>
-
           <div class="git-summary">
             <span class="git-summary-item accent">暂存 {{ status?.staged.length ?? 0 }}</span>
             <span class="git-summary-item warning">修改 {{ status?.modified.length ?? 0 }}</span>
@@ -24,20 +23,19 @@
             <span v-if="status && status.behind > 0" class="git-summary-item warning">落后 {{ status.behind }}</span>
           </div>
         </div>
-
         <div class="git-topbar-actions">
-          <n-button size="small" quaternary :loading="pulling" @click="handlePull">
+          <n-button size="tiny" quaternary :loading="pulling" @click="handlePull">
             <template #icon><n-icon :component="ArrowDownOutline" /></template>
             Pull
           </n-button>
-          <n-button size="small" quaternary :loading="pushing" @click="handlePush">
+          <n-button size="tiny" quaternary :loading="pushing" @click="handlePush">
             <template #icon><n-icon :component="ArrowUpOutline" /></template>
             Push
           </n-button>
-          <n-button size="small" quaternary :loading="stashing" @click="stashModalVisible = true">
+          <n-button size="tiny" quaternary :loading="stashing" @click="stashModalVisible = true">
             Stash
           </n-button>
-          <n-button size="small" quaternary @click="refreshAll">
+          <n-button size="tiny" quaternary @click="refreshAll">
             <template #icon><n-icon :component="RefreshOutline" /></template>
             刷新
           </n-button>
@@ -50,126 +48,124 @@
             <template v-if="hasChanges">
               <div class="git-changes-layout">
                 <div class="git-changes-column">
-                  <div class="git-section-list">
-                    <section v-if="status && status.staged.length > 0" class="git-file-section">
-                      <div class="git-file-section-header">
-                        <span class="git-file-section-title">已暂存</span>
-                        <n-button text size="tiny" @click="unstageAll">取消全部暂存</n-button>
-                      </div>
-                      <button
-                        v-for="file in status.staged"
-                        :key="'staged-' + file.path"
-                        class="git-file-item"
-                        :class="{ active: isPreviewTarget(file.path, 'staged') }"
-                        @click="selectPreview(file.path, 'staged', file.status)"
-                      >
-                        <span class="git-file-badge staged">S</span>
-                        <span class="git-file-badge" :class="fileStatusClass(file.status)">{{ fileStatusChar(file.status) }}</span>
-                        <span class="git-file-name">{{ file.path }}</span>
-                        <span class="git-file-action">预览</span>
-                      </button>
-                    </section>
-
-                    <section v-if="status && status.modified.length > 0" class="git-file-section">
-                      <div class="git-file-section-header">
-                        <span class="git-file-section-title">未暂存</span>
-                        <n-button text size="tiny" @click="stageFiles(status.modified.map(file => file.path))">暂存全部</n-button>
-                      </div>
-                      <button
-                        v-for="file in status.modified"
-                        :key="'modified-' + file.path"
-                        class="git-file-item"
-                        :class="{ active: isPreviewTarget(file.path, 'working') }"
-                        @click="selectPreview(file.path, 'working', file.status)"
-                      >
-                        <span class="git-file-badge" :class="fileStatusClass(file.status)">{{ fileStatusChar(file.status) }}</span>
-                        <span class="git-file-name">{{ file.path }}</span>
-                        <span class="git-file-action">预览</span>
-                      </button>
-                    </section>
-
-                    <section v-if="status && status.untracked.length > 0" class="git-file-section">
-                      <div class="git-file-section-header">
-                        <span class="git-file-section-title">未追踪</span>
-                        <n-button text size="tiny" @click="stageFiles(status.untracked)">暂存全部</n-button>
-                      </div>
-                      <button
-                        v-for="file in status.untracked"
-                        :key="'untracked-' + file"
-                        class="git-file-item"
-                        :class="{ active: isPreviewTarget(file, 'untracked') }"
-                        @click="selectPreview(file, 'untracked', 'added')"
-                      >
-                        <span class="git-file-badge untracked">?</span>
-                        <span class="git-file-name">{{ file }}</span>
-                        <span class="git-file-action">预览</span>
-                      </button>
-                    </section>
+                  <div class="git-changes-section-header">
+                    <span class="git-changes-section-title">暂存更改 ({{ totalFileCount }})</span>
                   </div>
 
-                  <section class="git-commit-bar pm-panel">
-                    <div class="git-commit-meta">
-                      <span class="pm-kicker">Commit</span>
-                      <strong>当前已暂存 {{ status?.staged.length ?? 0 }} 个文件</strong>
-                      <p class="pm-muted">先在左侧或预览区暂存文件，再填写提交信息。</p>
-                    </div>
-                    <div class="git-commit-form">
-                      <n-input
-                        v-model:value="commitMessage"
-                        placeholder="输入提交信息..."
-                        size="small"
-                        @keyup.enter="handleCommit"
-                        :disabled="committing"
-                      />
-                      <n-button type="primary" :disabled="!canCommit" :loading="committing" @click="handleCommit">
-                        提交
-                      </n-button>
-                    </div>
-                  </section>
+                  <div class="git-flat-file-list">
+                    <button
+                      v-for="file in status?.staged"
+                      :key="'staged-' + file.path"
+                      class="git-flat-file-item staged-border"
+                      :class="{ active: isPreviewTarget(file.path, 'staged') }"
+                      @click="selectPreview(file.path, 'staged', file.status)"
+                    >
+                      <span class="material-symbols-outlined git-file-icon">description</span>
+                      <span class="git-flat-file-name">{{ file.path }}</span>
+                      <span class="git-flat-file-status" :class="fileStatusClass(file.status)">{{ fileStatusChar(file.status) }}</span>
+                    </button>
+
+                    <button
+                      v-for="file in status?.modified"
+                      :key="'modified-' + file.path"
+                      class="git-flat-file-item modified-border"
+                      :class="{ active: isPreviewTarget(file.path, 'working') }"
+                      @click="selectPreview(file.path, 'working', file.status)"
+                    >
+                      <span class="material-symbols-outlined git-file-icon">description</span>
+                      <span class="git-flat-file-name">{{ file.path }}</span>
+                      <span class="git-flat-file-status" :class="fileStatusClass(file.status)">{{ fileStatusChar(file.status) }}</span>
+                    </button>
+
+                    <button
+                      v-for="file in status?.untracked"
+                      :key="'untracked-' + file"
+                      class="git-flat-file-item untracked-border"
+                      :class="{ active: isPreviewTarget(file, 'untracked') }"
+                      @click="selectPreview(file, 'untracked', 'added')"
+                    >
+                      <span class="material-symbols-outlined git-file-icon">description</span>
+                      <span class="git-flat-file-name">{{ file }}</span>
+                      <span class="git-flat-file-status untracked">?</span>
+                    </button>
+                  </div>
+
+                  <div class="git-commit-bar">
+                    <label class="git-commit-label">提交消息</label>
+                    <n-input
+                      v-model:value="commitMessage"
+                      type="textarea"
+                      placeholder="输入提交信息... (Enter 提交)"
+                      :autosize="{ minRows: 3, maxRows: 4 }"
+                      :disabled="committing"
+                      class="git-commit-textarea"
+                    />
+                    <button
+                      class="git-commit-btn"
+                      :class="{ disabled: !canCommit }"
+                      :disabled="!canCommit"
+                      @click="handleCommit"
+                    >
+                      {{ committing ? '提交中...' : '提交并推送' }}
+                    </button>
+                  </div>
                 </div>
 
-                <aside class="git-preview pm-panel">
-                  <div class="git-preview-header">
-                    <div>
-                      <p class="pm-kicker">Diff Preview</p>
-                      <h3 class="git-preview-title">{{ selectedPreview?.path || '选择一个文件查看差异' }}</h3>
-                      <p class="git-preview-copy">{{ previewSubtitle }}</p>
+                <section class="git-diff-panel">
+                  <div class="git-diff-panel-header">
+                    <div class="git-diff-panel-title-group">
+                      <h3 class="git-diff-panel-title">{{ selectedPreview?.path || '选择一个文件查看差异' }}</h3>
+                      <span class="git-diff-scope-label">{{ scopeLabel }}</span>
                     </div>
-                    <div class="git-preview-actions">
-                      <n-button
-                        v-if="selectedPreview && selectedPreview.scope !== 'staged'"
-                        size="small"
-                        type="primary"
+                    <div class="git-diff-panel-actions" v-if="selectedPreview">
+                      <button
+                        v-if="selectedPreview.scope !== 'staged'"
+                        class="git-diff-action-btn primary"
                         @click="stageFiles([selectedPreview.path])"
                       >
-                        暂存当前文件
-                      </n-button>
-                      <n-button
-                        v-if="selectedPreview && selectedPreview.scope === 'staged'"
-                        size="small"
-                        quaternary
+                        <span class="material-symbols-outlined">add</span>
+                        暂存
+                      </button>
+                      <button
+                        v-if="selectedPreview.scope === 'staged'"
+                        class="git-diff-action-btn"
                         @click="unstageFiles([selectedPreview.path])"
                       >
+                        <span class="material-symbols-outlined">remove</span>
                         取消暂存
-                      </n-button>
-                      <n-button
-                        v-if="selectedPreview && selectedPreview.scope !== 'staged'"
-                        size="small"
-                        quaternary
+                      </button>
+                      <button
+                        v-if="selectedPreview.scope !== 'staged'"
+                        class="git-diff-action-btn danger"
                         @click="confirmDiscardSelected"
                       >
-                        丢弃当前改动
-                      </n-button>
+                        <span class="material-symbols-outlined">delete_outline</span>
+                        丢弃
+                      </button>
                     </div>
                   </div>
 
-                  <GitDiffViewer
-                    :content="previewContent"
-                    :mode="previewMode"
-                    :empty-title="previewLoading ? '正在加载差异' : '没有可展示的差异'"
-                    :empty-copy="previewLoading ? '请稍候…' : '选择变更文件后，这里会显示可视化差异。'"
-                  />
-                </aside>
+                  <div class="git-diff-viewer-area">
+                    <GitDiffViewer
+                      :content="previewContent"
+                      :mode="previewMode"
+                      :empty-title="previewLoading ? '正在加载差异' : '没有可展示的差异'"
+                      :empty-copy="previewLoading ? '请稍候…' : '选择变更文件后，这里会显示可视化差异。'"
+                    />
+                  </div>
+
+                  <div class="git-diff-info-bar">
+                    <div class="git-diff-info-left">
+                      <span v-if="selectedPreview" class="git-diff-info-item">{{ selectedPreview.path }}</span>
+                    </div>
+                    <div class="git-diff-info-right">
+                      <span v-if="selectedPreview && selectedPreview.scope === 'staged'" class="git-diff-sync-badge">
+                        <span class="git-diff-sync-dot"></span>
+                        已暂存
+                      </span>
+                    </div>
+                  </div>
+                </section>
               </div>
             </template>
 
@@ -198,7 +194,7 @@
                 <div class="git-commit-hash">{{ commit.shortHash }}</div>
                 <div class="git-commit-info">
                   <div class="git-commit-message">{{ commit.message }}</div>
-                  <div class="git-commit-meta">
+                  <div class="git-commit-meta-row">
                     <span>{{ commit.author }}</span>
                     <span class="git-commit-date">{{ formatDate(commit.date) }}</span>
                   </div>
@@ -231,7 +227,7 @@
 
         <n-tab-pane name="branches" tab="分支">
           <div class="git-tab-content">
-            <section class="git-branch-create pm-panel">
+            <section class="git-branch-create">
               <div class="git-branch-create-copy">
                 <span class="pm-kicker">Branch</span>
                 <strong>从当前分支创建新分支</strong>
@@ -374,7 +370,7 @@ const hasChanges = computed(() => {
 });
 
 const canCommit = computed(() => {
-  return (status.value?.staged.length ?? 0) > 0 && commitMessage.value.trim().length > 0 && !committing.value;
+  return commitMessage.value.trim().length > 0 && !committing.value && hasChanges.value;
 });
 
 const previewSubtitle = computed(() => {
@@ -382,6 +378,18 @@ const previewSubtitle = computed(() => {
   if (selectedPreview.value.scope === 'staged') return '当前显示暂存区与 HEAD 之间的差异。';
   if (selectedPreview.value.scope === 'working') return '当前显示工作区与暂存区之间的差异。';
   return '当前文件尚未纳入 Git 跟踪，展示的是文本预览。';
+});
+
+const totalFileCount = computed(() => {
+  if (!status.value) return 0;
+  return status.value.staged.length + status.value.modified.length + status.value.untracked.length;
+});
+
+const scopeLabel = computed(() => {
+  if (!selectedPreview.value) return '';
+  if (selectedPreview.value.scope === 'staged') return '暂存区差异';
+  if (selectedPreview.value.scope === 'working') return '工作区差异';
+  return '未追踪文件预览';
 });
 
 onMounted(async () => {
@@ -556,9 +564,16 @@ async function discardSelected(): Promise<void> {
 }
 
 async function handleCommit(): Promise<void> {
-  if (!canCommit.value) return;
+  if (!commitMessage.value.trim() || committing.value) return;
   committing.value = true;
   try {
+    // Auto-stage all changes if nothing is staged yet
+    if ((status.value?.staged.length ?? 0) === 0 && status.value) {
+      const files = [...status.value.modified.map(f => f.path), ...status.value.untracked];
+      if (files.length > 0) {
+        await electronApi.gitAdd(props.projectPath, files);
+      }
+    }
     await electronApi.gitCommit(props.projectPath, commitMessage.value.trim());
     message.success('提交成功');
     commitMessage.value = '';
@@ -682,75 +697,599 @@ function joinPath(rootPath: string, relativePath: string): string {
 </script>
 
 <style scoped>
-.git-panel { height: 100%; display: flex; flex-direction: column; gap: 12px; overflow: hidden; }
-.git-panel-empty { flex: 1; min-height: 0; }
-.git-empty-icon { display: grid; place-items: center; width: 56px; height: 56px; border-radius: var(--pm-radius-md); background: var(--pm-surface-container-high); color: var(--pm-primary); }
-.git-panel-empty p { max-width: 420px; color: var(--pm-text-secondary); text-align: center; line-height: 1.6; font-size: 0.75rem; }
-.git-topbar { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 16px 20px; }
-.git-topbar-main { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
-.git-branch-pill { display: inline-flex; align-items: center; gap: 6px; width: fit-content; padding: 6px 12px; border-radius: var(--pm-radius-sm); background: rgba(0, 83, 219, 0.06); border: none; color: var(--pm-primary); }
-.git-branch-name { font-size: 0.75rem; font-weight: 700; }
-.git-summary { display: flex; flex-wrap: wrap; gap: 6px; }
-.git-summary-item { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: var(--pm-radius-xs); background: var(--pm-surface-container-high); border: none; color: var(--pm-text-secondary); font-size: 0.6875rem; font-weight: 700; }
+/* === Material Symbols font-face === */
+@import url('https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap');
+
+/* === Panel root === */
+.git-panel {
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.git-panel-empty {
+  flex: 1;
+  min-height: 0;
+}
+.git-empty-icon {
+  display: grid;
+  place-items: center;
+  width: 56px;
+  height: 56px;
+  border-radius: 8px;
+  background: var(--pm-surface-container-high);
+  color: var(--pm-primary);
+}
+.git-panel-empty p {
+  max-width: 420px;
+  color: var(--pm-text-secondary);
+  text-align: center;
+  line-height: 1.6;
+  font-size: 0.75rem;
+}
+
+/* === Compact topbar === */
+.git-topbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  background: var(--pm-surface-container-lowest);
+  border-bottom: 1px solid rgba(172, 179, 180, 0.15);
+  flex-shrink: 0;
+}
+.git-topbar-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.git-branch-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  background: rgba(0, 83, 219, 0.06);
+  border: 1px solid rgba(0, 83, 219, 0.12);
+  color: var(--pm-primary);
+}
+.git-branch-name {
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+.git-summary {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.git-summary-item {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--pm-text-secondary);
+}
 .git-summary-item.accent { color: var(--pm-primary); }
 .git-summary-item.warning { color: var(--pm-warning); }
+.git-summary-item.muted { color: var(--pm-text-tertiary); }
 .git-summary-item.info { color: var(--pm-primary); }
-.git-topbar-actions { display: flex; gap: 6px; flex-wrap: wrap; }
-.git-tabs { flex: 1; min-height: 0; }
-.git-tabs :deep(.n-tabs-tab) { font-size: 0.75rem; font-weight: 600; color: var(--pm-text-secondary); }
-.git-tabs :deep(.n-tabs-bar) { height: 2px; border-radius: 1px; background: var(--pm-primary); }
-.git-tabs :deep(.n-tabs-pane-wrapper), .git-tabs :deep(.n-tabs-content), .git-tabs :deep(.n-tab-pane) { height: 100%; }
-.git-tab-content { height: 100%; padding-top: 12px; display: flex; flex-direction: column; gap: 12px; }
-.git-changes-layout { display: grid; grid-template-columns: minmax(300px, 0.9fr) minmax(0, 1.1fr); gap: 12px; min-height: 0; flex: 1; }
-.git-changes-column, .git-preview { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
-.git-preview { padding: 16px; }
-.git-preview-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
-.git-preview-title { font-size: 1rem; font-weight: 700; color: var(--pm-text-primary); letter-spacing: -0.01em; word-break: break-word; }
-.git-preview-copy { margin-top: 4px; font-size: 0.6875rem; color: var(--pm-text-secondary); line-height: 1.5; }
-.git-preview-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
-.git-section-list, .git-history, .git-branches { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 4px; }
-.git-file-section { border-radius: var(--pm-radius-md); background: var(--pm-surface-container-low); border: none; overflow: hidden; }
-.git-file-section-header { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 10px 14px; border-bottom: 1px solid rgba(172, 179, 180, 0.08); }
-.git-file-section-title { font-size: 0.625rem; font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; color: var(--pm-text-tertiary); }
-.git-file-item { width: 100%; border: none; background: transparent; display: flex; align-items: center; gap: 8px; min-height: 38px; padding: 0 14px; color: var(--pm-text-secondary); cursor: pointer; text-align: left; transition: background-color 0.12s ease; font-size: 0.75rem; }
-.git-file-item:hover, .git-file-item.active { background: var(--pm-surface-container-high); color: var(--pm-text-primary); }
-.git-file-badge { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: var(--pm-radius-xs); font-size: 0.625rem; font-weight: 700; flex-shrink: 0; }
-.git-file-badge.staged { background: rgba(0, 83, 219, 0.1); color: var(--pm-primary); }
-.git-file-badge.added { background: rgba(0, 83, 219, 0.1); color: var(--pm-primary); }
-.git-file-badge.modified { background: var(--pm-warning-bg); color: var(--pm-warning); }
-.git-file-badge.deleted { background: rgba(159, 64, 61, 0.1); color: var(--pm-error); }
-.git-file-badge.renamed { background: rgba(98, 91, 119, 0.1); color: var(--pm-tertiary); }
-.git-file-badge.untracked { background: var(--pm-surface-container-high); color: var(--pm-text-secondary); }
-.git-file-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.git-file-action { color: var(--pm-text-tertiary); font-size: 0.6875rem; }
-.git-commit-bar { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; }
-.git-commit-meta { display: flex; flex-direction: column; gap: 4px; }
-.git-commit-meta strong { font-size: 0.875rem; color: var(--pm-text-primary); }
-.git-commit-form { display: flex; align-items: center; gap: 8px; min-width: min(360px, 100%); }
-.git-list-empty { flex: 1; min-height: 0; }
-.git-commit-item, .git-branch-item { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 10px 14px; border-radius: var(--pm-radius-sm); background: var(--pm-surface-container-low); border: none; }
-.git-commit-item { cursor: pointer; transition: background-color 0.12s ease; }
-.git-commit-item:hover { background: var(--pm-surface-container-high); }
-.git-commit-hash, .git-diff-hash { display: inline-flex; align-items: center; height: 24px; padding: 0 8px; border-radius: var(--pm-radius-xs); background: rgba(0, 83, 219, 0.08); color: var(--pm-primary); font-family: var(--pm-font-code); font-size: 0.6875rem; font-weight: 700; }
-.git-commit-info { flex: 1; min-width: 0; }
-.git-commit-message, .git-diff-message { font-size: 0.8125rem; color: var(--pm-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.git-commit-meta, .git-diff-meta { display: flex; gap: 8px; margin-top: 2px; font-size: 0.6875rem; color: var(--pm-text-tertiary); flex-wrap: wrap; }
-.git-diff-header { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
-.git-branch-info { display: flex; align-items: center; gap: 8px; min-width: 0; }
-.git-branch-icon { color: var(--pm-primary); }
-.git-branch-placeholder { width: 16px; flex-shrink: 0; }
-.git-branch-item-name { font-size: 0.8125rem; color: var(--pm-text-secondary); }
-.git-branch-item-name.current { color: var(--pm-text-primary); font-weight: 700; }
-.git-branch-badge { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--pm-radius-xs); background: rgba(0, 83, 219, 0.08); color: var(--pm-primary); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; }
-.git-branch-create { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; }
-.git-branch-create-copy { display: flex; flex-direction: column; gap: 4px; }
-.git-branch-create-copy strong { font-size: 0.875rem; color: var(--pm-text-primary); }
-.git-modal-body { display: flex; flex-direction: column; gap: 12px; }
-.git-modal-copy { color: var(--pm-text-secondary); line-height: 1.5; font-size: 0.75rem; }
-.git-modal-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.git-topbar-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+/* === Tabs === */
+.git-tabs {
+  flex: 1;
+  min-height: 0;
+}
+.git-tabs :deep(.n-tabs-tab) {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--pm-text-secondary);
+}
+.git-tabs :deep(.n-tabs-bar) {
+  height: 2px;
+  border-radius: 1px;
+  background: var(--pm-primary);
+}
+.git-tabs :deep(.n-tabs-pane-wrapper),
+.git-tabs :deep(.n-tabs-content),
+.git-tabs :deep(.n-tab-pane) {
+  height: 100%;
+}
+.git-tab-content {
+  height: 100%;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+/* === Changes tab layout === */
+.git-changes-layout {
+  display: flex;
+  flex: 1;
+  min-height: 0;
+  gap: 0;
+}
+.git-changes-column {
+  width: 320px;
+  flex-shrink: 0;
+  display: flex;
+  flex-direction: column;
+  background: var(--pm-surface-container-low);
+  border-right: 1px solid rgba(172, 179, 180, 0.15);
+}
+
+/* === Section header: "暂存更改 (N)" === */
+.git-changes-section-header {
+  padding: 12px 16px 8px;
+  flex-shrink: 0;
+}
+.git-changes-section-title {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pm-text-secondary);
+}
+
+/* === Flat file list === */
+.git-flat-file-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 8px 4px;
+}
+.git-flat-file-item {
+  width: 100%;
+  border: none;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 12px 6px 12px;
+  border-left: 3px solid transparent;
+  border-radius: 0 6px 6px 0;
+  color: var(--pm-text-secondary);
+  cursor: pointer;
+  text-align: left;
+  transition: background-color 0.12s ease, border-color 0.12s ease;
+  font-size: 0.75rem;
+  font-family: inherit;
+}
+.git-flat-file-item:hover {
+  background: var(--pm-surface-container-high);
+}
+.git-flat-file-item.active {
+  background: var(--pm-surface-container-lowest);
+  color: var(--pm-text-primary);
+}
+
+/* Left border color indicators */
+.git-flat-file-item.staged-border {
+  border-left-color: var(--pm-primary);
+}
+.git-flat-file-item.modified-border {
+  border-left-color: var(--pm-warning);
+}
+.git-flat-file-item.untracked-border {
+  border-left-color: var(--pm-border-ghost);
+}
+.git-flat-file-item.active.staged-border {
+  border-left-color: var(--pm-primary-dim);
+}
+.git-flat-file-item.active.modified-border {
+  border-left-color: var(--pm-warning);
+}
+
+/* Material icon */
+.git-file-icon {
+  font-size: 16px;
+  color: var(--pm-text-secondary);
+  flex-shrink: 0;
+}
+
+/* File name */
+.git-flat-file-name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* Status letter */
+.git-flat-file-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  font-size: 0.6875rem;
+  font-weight: 800;
+  flex-shrink: 0;
+  font-family: var(--pm-font-code);
+}
+.git-flat-file-status.modified {
+  color: var(--pm-primary-dim);
+}
+.git-flat-file-status.added {
+  color: var(--pm-primary);
+}
+.git-flat-file-status.deleted {
+  color: var(--pm-error);
+}
+.git-flat-file-status.renamed {
+  color: var(--pm-primary);
+}
+.git-flat-file-status.untracked {
+  color: var(--pm-text-tertiary);
+}
+
+/* === Commit bar === */
+.git-commit-bar {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(172, 179, 180, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex-shrink: 0;
+  background: var(--pm-surface-container-low);
+}
+.git-commit-label {
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--pm-text-secondary);
+}
+.git-commit-textarea :deep(.n-input-wrapper) {
+  padding: 0;
+  background: transparent;
+}
+.git-commit-textarea :deep(.n-input) {
+  background: var(--pm-surface-container-lowest);
+  border: 1px solid rgba(172, 179, 180, 0.15);
+  border-radius: 8px;
+  --n-padding: 12px 14px;
+}
+.git-commit-textarea :deep(.n-input--focus) {
+  border-color: var(--pm-primary) !important;
+}
+.git-commit-textarea :deep(.n-input__textarea-el) {
+  font-size: 0.75rem;
+  font-family: inherit;
+  color: var(--pm-text-primary);
+  line-height: 1.6;
+}
+.git-commit-textarea :deep(.n-input__textarea-el::placeholder) {
+  color: var(--pm-text-tertiary);
+  opacity: 0.6;
+}
+.git-commit-btn {
+  width: 100%;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 8px;
+  background: linear-gradient(135deg, var(--pm-primary), var(--pm-primary-dim));
+  color: #ffffff;
+  font-size: 0.75rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: opacity 0.15s ease, transform 0.1s ease;
+  font-family: inherit;
+}
+.git-commit-btn:hover:not(.disabled) {
+  opacity: 0.9;
+}
+.git-commit-btn:active:not(.disabled) {
+  transform: scale(0.98);
+}
+.git-commit-btn.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* === Right diff panel === */
+.git-diff-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background: var(--pm-surface-container-lowest);
+  min-width: 0;
+}
+.git-diff-panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 24px;
+  border-bottom: 1px solid rgba(172, 179, 180, 0.1);
+  flex-shrink: 0;
+}
+.git-diff-panel-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+.git-diff-panel-title {
+  font-size: 0.875rem;
+  font-weight: 700;
+  color: var(--pm-text-primary);
+  letter-spacing: -0.01em;
+  word-break: break-word;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.git-diff-scope-label {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--pm-surface-container-high);
+  color: var(--pm-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  flex-shrink: 0;
+}
+.git-diff-panel-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.git-diff-action-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 5px 10px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--pm-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.12s ease, color 0.12s ease;
+  font-family: inherit;
+}
+.git-diff-action-btn:hover {
+  background: var(--pm-surface-container-high);
+  color: var(--pm-text-primary);
+}
+.git-diff-action-btn .material-symbols-outlined {
+  font-size: 16px;
+}
+.git-diff-action-btn.primary {
+  background: rgba(0, 83, 219, 0.08);
+  color: var(--pm-primary);
+}
+.git-diff-action-btn.primary:hover {
+  background: rgba(0, 83, 219, 0.14);
+}
+.git-diff-action-btn.danger:hover {
+  background: rgba(159, 64, 61, 0.08);
+  color: var(--pm-error);
+}
+
+/* Diff viewer area */
+.git-diff-viewer-area {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Bottom info bar */
+.git-diff-info-bar {
+  height: 32px;
+  background: var(--pm-surface-container-high);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 24px;
+  border-top: 1px solid rgba(172, 179, 180, 0.1);
+  flex-shrink: 0;
+}
+.git-diff-info-left {
+  display: flex;
+  gap: 16px;
+}
+.git-diff-info-item {
+  font-size: 0.6875rem;
+  color: var(--pm-text-secondary);
+  font-weight: 500;
+}
+.git-diff-sync-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.6875rem;
+  font-weight: 700;
+  color: var(--pm-primary);
+}
+.git-diff-sync-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--pm-primary);
+}
+
+/* === Empty state === */
+.git-list-empty {
+  flex: 1;
+  min-height: 0;
+}
+
+/* === History tab (hover-bg pattern) === */
+.git-history {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 8px;
+}
+.git-commit-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  transition: background-color 0.12s ease;
+}
+.git-commit-item:hover {
+  background: var(--pm-surface-container-high);
+}
+.git-commit-hash,
+.git-diff-hash {
+  display: inline-flex;
+  align-items: center;
+  height: 24px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: rgba(0, 83, 219, 0.08);
+  color: var(--pm-primary);
+  font-family: var(--pm-font-code);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.git-commit-info {
+  flex: 1;
+  min-width: 0;
+}
+.git-commit-message,
+.git-diff-message {
+  font-size: 0.8125rem;
+  color: var(--pm-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.git-commit-meta-row,
+.git-diff-meta {
+  display: flex;
+  gap: 8px;
+  margin-top: 2px;
+  font-size: 0.6875rem;
+  color: var(--pm-text-tertiary);
+  flex-wrap: wrap;
+}
+.git-diff-header {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 10px;
+}
+
+/* === Branches tab (hover-bg pattern) === */
+.git-branches {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  flex-direction: column;
+  padding: 4px 8px;
+}
+.git-branch-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: transparent;
+  border: none;
+  transition: background-color 0.12s ease;
+}
+.git-branch-item:hover {
+  background: var(--pm-surface-container-high);
+}
+.git-branch-create {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 12px 16px;
+  border-bottom: 1px solid rgba(172, 179, 180, 0.1);
+  margin-bottom: 4px;
+}
+.git-branch-create-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.git-branch-create-copy strong {
+  font-size: 0.8125rem;
+  color: var(--pm-text-primary);
+}
+.git-branch-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+.git-branch-icon {
+  color: var(--pm-primary);
+}
+.git-branch-placeholder {
+  width: 16px;
+  flex-shrink: 0;
+}
+.git-branch-item-name {
+  font-size: 0.8125rem;
+  color: var(--pm-text-secondary);
+}
+.git-branch-item-name.current {
+  color: var(--pm-text-primary);
+  font-weight: 700;
+}
+.git-branch-badge {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: 6px;
+  background: rgba(0, 83, 219, 0.08);
+  color: var(--pm-primary);
+  font-size: 0.625rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+/* === Modal shared === */
+.git-modal-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.git-modal-copy {
+  color: var(--pm-text-secondary);
+  line-height: 1.5;
+  font-size: 0.75rem;
+}
+.git-modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+/* === Responsive === */
 @media (max-width: 1120px) {
-  .git-changes-layout { grid-template-columns: 1fr; }
-  .git-commit-bar { flex-direction: column; align-items: flex-start; }
-  .git-commit-form { width: 100%; min-width: 0; }
+  .git-changes-layout {
+    flex-direction: column;
+  }
+  .git-changes-column {
+    width: 100%;
+    max-height: 300px;
+    border-right: none;
+    border-bottom: 1px solid rgba(172, 179, 180, 0.15);
+  }
 }
 </style>

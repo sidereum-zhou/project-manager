@@ -83,6 +83,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
   gitBranches: (projectPath: string) => ipcRenderer.invoke('git:branches', projectPath),
   gitShow: (projectPath: string, hash: string) => ipcRenderer.invoke('git:show', projectPath, hash),
 
+  // System
+  getSystemInfo: () => ipcRenderer.invoke('system:info'),
+
   // Scenes / Architecture
   listScenes: (projectId: string) => ipcRenderer.invoke('scene:list', projectId),
   createScene: (projectId: string, payload: any) => ipcRenderer.invoke('scene:create', projectId, payload),

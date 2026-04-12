@@ -248,4 +248,20 @@ export const electronApi = {
   async analyzeArchitecture(project: Pick<Project, 'name' | 'path' | 'type' | 'packageManager' | 'subProjects'>): Promise<ArchitectureAnalysis> {
     return api.analyzeArchitecture(project);
   },
+
+  async getSystemInfo(): Promise<{
+    hostname: string;
+    platform: string;
+    arch: string;
+    cpuModel: string;
+    cpuCores: number;
+    cpuUsage: number;
+    totalMemoryGB: number;
+    freeMemoryGB: number;
+    usedMemoryGB: number;
+    memoryUsagePercent: number;
+    uptimeSeconds: number;
+  }> {
+    return api.getSystemInfo();
+  },
 };

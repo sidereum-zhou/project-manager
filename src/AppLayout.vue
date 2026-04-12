@@ -16,6 +16,15 @@
         <div class="app-sidebar-label">工作区</div>
 
         <button
+          class="app-sidebar-item"
+          :class="{ active: !projectStore.activeProject }"
+          @click="projectStore.selectProject(null)"
+        >
+          <n-icon size="18" :component="GridOutline" />
+          <span>仪表盘</span>
+        </button>
+
+        <button
           v-if="!projectStore.activeProject"
           class="app-sidebar-item"
           @click="handleImport"
@@ -61,24 +70,7 @@
 
       <!-- Content Area -->
       <div class="app-content">
-        <div v-if="!projectStore.activeProject" class="app-empty">
-          <div class="app-empty-icon">
-            <n-icon size="34" :component="FolderOpenOutline" />
-          </div>
-          <span class="pm-kicker">Workspace Ready</span>
-          <h2 class="app-empty-title">先导入一个项目，再开始管理它的命令和代码。</h2>
-          <p class="app-empty-copy">
-            这里会成为你的主工作区，用来查看运行命令、文件结构、Git 变更和项目配置。
-          </p>
-          <div class="app-empty-points">
-            <span class="pm-pill">终端执行与重启</span>
-            <span class="pm-pill">文件树快速打开</span>
-            <span class="pm-pill">Git 提交与分支查看</span>
-          </div>
-          <n-button type="primary" size="medium" @click="handleImport">
-            导入第一个项目
-          </n-button>
-        </div>
+        <DashboardView v-if="!projectStore.activeProject" />
         <ProjectOverview
           v-else
           :key="activeProjectKey"
@@ -93,7 +85,6 @@
 import { onMounted, computed } from 'vue';
 import { NIcon, NButton, useMessage, useDialog } from 'naive-ui';
 import {
-  FolderOpenOutline,
   AddOutline,
   GridOutline,
   LogoNodejs,
@@ -103,6 +94,7 @@ import {
   HelpCircleOutline,
 } from '@vicons/ionicons5';
 import { useProjectStore } from '@/stores/projects';
+import DashboardView from '@/views/DashboardView.vue';
 import ProjectOverview from '@/views/ProjectOverview.vue';
 
 const projectStore = useProjectStore();
@@ -322,48 +314,5 @@ async function handleImport(): Promise<void> {
   flex: 1;
   min-height: 0;
   overflow: hidden;
-}
-
-.app-empty {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 100%;
-  gap: 12px;
-  padding: 48px;
-  text-align: center;
-}
-
-.app-empty-icon {
-  display: grid;
-  place-items: center;
-  width: 64px;
-  height: 64px;
-  border-radius: var(--pm-radius-md);
-  background: var(--pm-surface-container-high);
-  color: var(--pm-primary);
-}
-
-.app-empty-title {
-  max-width: 640px;
-  font-size: 1.5rem;
-  line-height: 1.1;
-  font-weight: 700;
-  color: var(--pm-text-primary);
-}
-
-.app-empty-copy {
-  max-width: 560px;
-  color: var(--pm-text-secondary);
-  line-height: 1.7;
-  font-size: 0.75rem;
-}
-
-.app-empty-points {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
-  gap: 8px;
 }
 </style>
