@@ -65,7 +65,7 @@
           <div class="cac-messages">
             <template v-for="msg in store.displayConversation" :key="msg.id">
               <!-- User bubble -->
-              <div v-if="msg.role === 'user'" class="cac-bubble cac-bubble--user">
+              <div v-if="msg.role === 'user' && msg.textContent" class="cac-bubble cac-bubble--user">
                 <div class="cac-bubble-content">
                   <pre v-if="msg.textContent" class="cac-bubble-text">{{ msg.textContent }}</pre>
                 </div>

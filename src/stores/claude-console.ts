@@ -271,6 +271,7 @@ export const useClaudeConsoleStore = defineStore('claude-console', () => {
 
       case 'user': {
         const content = (event.payload.content as string) ?? '';
+        if (!content) break;
         // Flush any pending assistant first
         flushPendingAssistant(runId);
         const msgs = conversationMessages.value.get(runId) ?? [];

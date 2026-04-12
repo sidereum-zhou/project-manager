@@ -711,9 +711,15 @@ export class ClaudeAgentRunner {
       }
 
       case 'user': {
-        this.emitEvent(active, 'user', {
-          content: this.extractUserContent(msg),
-        }, sessionId, parentToolUseId);
+        // Skip synthetic user messages (tool results) and replays
+        const isSynthetic = msg.isSynthetic as boolean;
+        const isReplay = msg.isReplay as boolean;
+        const content = this.extractUserContent(msg);
+        if (!isSynthetic && !isReplay && content) {
+          this.emitEvent(active, 'user', {
+            content,
+          }, sessionId, parentToolUseId);
+        }
         break;
       }
 
