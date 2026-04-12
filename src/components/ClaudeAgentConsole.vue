@@ -75,12 +75,12 @@
               <!-- Assistant bubble -->
               <div v-else-if="msg.role === 'assistant' && !msg.result" class="cac-bubble cac-bubble--assistant">
                 <div class="cac-bubble-avatar">
-                  <span class="material-symbols-outlined">psychology</span>
+                  <span class="material-symbols-outlined">smart_toy</span>
                 </div>
                 <div class="cac-bubble-body">
                   <div class="cac-bubble-meta">
                     <span class="cac-bubble-name">
-                      {{ msg.subagentName ? `Subagent: ${msg.subagentName}` : 'Claude' }}
+                      {{ msg.subagentName || 'Claude' }}
                     </span>
                     <span class="cac-bubble-time">{{ formatRelativeTime(msg.timestamp) }}</span>
                   </div>
@@ -168,10 +168,12 @@
       </section>
 
       <!-- Collapsible drawer -->
-      <aside v-if="drawerOpen" class="cac-drawer">
-        <ClaudeTodoPanel :todos="store.todos" />
-        <ClaudeSubagentTree :invocations="store.subagents" />
-      </aside>
+      <transition name="cac-drawer">
+        <aside v-if="drawerOpen" class="cac-drawer">
+          <ClaudeTodoPanel :todos="store.todos" />
+          <ClaudeSubagentTree :invocations="store.subagents" />
+        </aside>
+      </transition>
     </div>
 
     <!-- ── Input bar ────────────────────────────────────── -->
@@ -193,6 +195,14 @@
         >
           <template #icon><span class="material-symbols-outlined">stop</span></template>
           停止
+        </n-button>
+        <n-button
+          v-if="store.currentRun && (store.currentRun.status === 'completed' || store.currentRun.status === 'stopped')"
+          size="small"
+          quaternary
+          @click="handleResume"
+        >
+          <template #icon><span class="material-symbols-outlined">replay</span></template>
         </n-button>
         <n-button
           size="small"
@@ -778,6 +788,20 @@ function formatDuration(ms: number): string {
   overflow: hidden;
   border-left: 1px solid rgba(172, 179, 180, 0.15);
   padding-left: 10px;
+}
+
+.cac-drawer-enter-active,
+.cac-drawer-leave-active {
+  transition: width 0.2s ease, opacity 0.2s ease;
+  overflow: hidden;
+}
+
+.cac-drawer-enter-from,
+.cac-drawer-leave-to {
+  width: 0;
+  opacity: 0;
+  padding-left: 0;
+  border-left-width: 0;
 }
 
 /* ── Input bar ──────────────────────────────────────── */
