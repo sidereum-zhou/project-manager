@@ -93,84 +93,71 @@ function selectProject(id: string): void {
   flex-direction: column;
   height: 100%;
   min-height: 0;
-  padding: 20px;
-  gap: 16px;
+  padding: 16px;
+  gap: 12px;
 }
-
 .project-list-header {
   display: flex;
   justify-content: space-between;
   align-items: flex-start;
-  gap: 12px;
+  gap: 8px;
 }
-
 .project-list-title {
-  font-size: 24px;
+  font-size: 1.125rem;
   line-height: 1.1;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-weight: 700;
+  color: var(--pm-text-primary);
 }
-
 .project-list-count {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 38px;
-  height: 38px;
-  padding: 0 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  min-width: 28px;
+  height: 28px;
+  padding: 0 8px;
+  border-radius: var(--pm-radius-sm);
+  background: var(--pm-surface-container-high);
+  border: none;
   color: var(--pm-text-secondary);
-  font-size: 13px;
+  font-size: 0.6875rem;
   font-weight: 700;
 }
-
 .project-list-search {
   margin-top: -2px;
 }
-
 .project-list-items {
   flex: 1;
   overflow-y: auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 2px;
   padding-right: 4px;
 }
-
 .project-list-label {
-  font-size: 11px;
+  font-size: 0.625rem;
   font-weight: 700;
-  letter-spacing: 0.14em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--pm-text-tertiary);
-  padding: 4px 2px 6px;
+  padding: 8px 12px 6px;
 }
-
 .project-list-empty {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 24px 14px;
+  gap: 6px;
+  padding: 20px 14px;
   text-align: center;
   border-radius: var(--pm-radius-md);
-  border: 1px dashed rgba(148, 163, 184, 0.18);
-  background: rgba(255, 255, 255, 0.02);
+  border: 1px dashed rgba(172, 179, 180, 0.3);
+  background: transparent;
   color: var(--pm-text-secondary);
+  font-size: 0.75rem;
 }
-
 .project-list-empty strong {
   color: var(--pm-text-primary);
-  font-size: 15px;
+  font-size: 0.8125rem;
 }
-
-.project-list-empty span {
-  font-size: 12px;
-  line-height: 1.6;
-}
-
 .project-list-footer {
   padding-top: 8px;
 }
