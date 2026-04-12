@@ -77,27 +77,27 @@ onMounted(async () => {
     lineHeight: 1.3,
     fontFamily: '"JetBrains Mono", "Cascadia Code", "Consolas", monospace',
     theme: {
-      background: '#07111f',
-      foreground: '#d7e0ee',
-      cursor: '#62d4b8',
-      cursorAccent: '#07111f',
-      selectionBackground: 'rgba(121, 182, 255, 0.24)',
-      black: '#07111f',
-      red: '#ff8299',
-      green: '#62d4b8',
-      yellow: '#f0b35f',
-      blue: '#79b6ff',
-      magenta: '#b39cff',
-      cyan: '#7ce2cb',
-      white: '#d7e0ee',
-      brightBlack: '#5d6b82',
-      brightRed: '#ff9eaf',
-      brightGreen: '#8de4d0',
-      brightYellow: '#f7c980',
-      brightBlue: '#9cc8ff',
-      brightMagenta: '#c9b8ff',
-      brightCyan: '#9debdc',
-      brightWhite: '#f4f7fb',
+      background: '#0f172a',
+      foreground: '#e2e8f0',
+      cursor: '#0053db',
+      cursorAccent: '#0f172a',
+      selectionBackground: 'rgba(0, 83, 219, 0.2)',
+      black: '#0f172a',
+      red: '#ef4444',
+      green: '#22c55e',
+      yellow: '#eab308',
+      blue: '#3b82f6',
+      magenta: '#a855f7',
+      cyan: '#06b6d4',
+      white: '#e2e8f0',
+      brightBlack: '#64748b',
+      brightRed: '#f87171',
+      brightGreen: '#4ade80',
+      brightYellow: '#facc15',
+      brightBlue: '#60a5fa',
+      brightMagenta: '#c084fc',
+      brightCyan: '#22d3ee',
+      brightWhite: '#f1f5f9',
     },
   });
   fitAddon = new FitAddon();
@@ -207,162 +207,120 @@ function handleResize(): void {
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 18px;
+  gap: 12px;
+  padding: 24px;
   overflow: hidden;
 }
-
 .terminal-toolbar {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
 }
-
 .terminal-toolbar-copy {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
 }
-
 .terminal-title {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--pm-text-primary);
 }
-
 .terminal-toolbar-actions {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   flex-wrap: wrap;
 }
-
 .terminal-status {
   display: inline-flex;
   align-items: center;
-  gap: 8px;
-  padding: 7px 12px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.04);
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: var(--pm-radius-sm);
+  background: var(--pm-surface-container-high);
   color: var(--pm-text-secondary);
-  font-size: 12px;
-  border: 1px solid rgba(148, 163, 184, 0.12);
+  font-size: 0.6875rem;
+  font-weight: 500;
+  border: none;
 }
-
 .terminal-status.live {
-  background: rgba(98, 212, 184, 0.12);
-  border-color: rgba(98, 212, 184, 0.18);
-  color: var(--pm-text-primary);
+  background: rgba(21, 128, 61, 0.08);
+  color: var(--pm-success);
 }
-
 .terminal-status-dot {
-  width: 8px;
-  height: 8px;
+  width: 6px;
+  height: 6px;
   border-radius: 50%;
   background: var(--pm-text-tertiary);
 }
-
 .terminal-status.live .terminal-status-dot {
-  background: var(--pm-accent);
-  box-shadow: 0 0 0 6px rgba(98, 212, 184, 0.12);
+  background: var(--pm-success);
 }
-
 .terminal-frame {
   flex: 1;
   min-height: 0;
   display: flex;
   flex-direction: column;
   overflow: hidden;
-  border-radius: 18px;
-  border: 1px solid rgba(148, 163, 184, 0.14);
-  background: #07111f;
+  border-radius: var(--pm-radius-md);
+  border: 1px solid rgba(15, 23, 42, 0.2);
+  background: #0f172a;
 }
-
 .terminal-frame-bar {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 12px 14px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.12);
-  background: rgba(255, 255, 255, 0.02);
+  gap: 12px;
+  padding: 8px 14px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(15, 23, 42, 0.8);
 }
-
-.terminal-window-dots {
-  display: flex;
-  gap: 6px;
-}
-
+.terminal-window-dots { display: flex; gap: 6px; }
 .terminal-window-dots span {
   width: 10px;
   height: 10px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.12);
+  background: rgba(255, 255, 255, 0.1);
 }
-
-.terminal-window-dots span:first-child {
-  background: rgba(255, 130, 153, 0.72);
-}
-
-.terminal-window-dots span:nth-child(2) {
-  background: rgba(240, 179, 95, 0.82);
-}
-
-.terminal-window-dots span:last-child {
-  background: rgba(98, 212, 184, 0.82);
-}
-
+.terminal-window-dots span:first-child { background: rgba(239, 68, 68, 0.7); }
+.terminal-window-dots span:nth-child(2) { background: rgba(234, 179, 8, 0.7); }
+.terminal-window-dots span:last-child { background: rgba(34, 197, 94, 0.7); }
 .terminal-path {
-  color: var(--pm-text-secondary);
-  font-size: 12px;
+  color: rgba(203, 213, 225, 0.6);
+  font-size: 0.6875rem;
   font-family: var(--pm-font-code);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-
-.terminal-container {
-  flex: 1;
-  min-height: 0;
-  padding: 14px;
-}
-
-.terminal-instance {
-  height: 100%;
-}
-
+.terminal-container { flex: 1; min-height: 0; padding: 12px; }
+.terminal-instance { height: 100%; }
 .context-menu {
   position: fixed;
   z-index: 9999;
   min-width: 128px;
-  padding: 6px;
-  border-radius: 14px;
-  background: rgba(19, 31, 52, 0.96);
-  border: 1px solid rgba(148, 163, 184, 0.2);
-  box-shadow: var(--pm-shadow-md);
+  padding: 4px;
+  border-radius: var(--pm-radius-sm);
+  background: var(--pm-surface-container-lowest);
+  border: 1px solid rgba(172, 179, 180, 0.15);
+  box-shadow: var(--pm-shadow-vapor);
 }
-
 .context-menu-item {
-  padding: 8px 12px;
-  font-size: 13px;
+  padding: 6px 10px;
+  font-size: 0.75rem;
   color: var(--pm-text-secondary);
-  border-radius: 10px;
+  border-radius: var(--pm-radius-xs);
   cursor: pointer;
 }
-
 .context-menu-item:hover:not(.disabled) {
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--pm-surface-container-low);
   color: var(--pm-text-primary);
 }
-
-.context-menu-item.disabled {
-  color: var(--pm-text-tertiary);
-  cursor: default;
-}
-
+.context-menu-item.disabled { color: var(--pm-text-tertiary); cursor: default; }
 .context-menu-sep {
   height: 1px;
-  margin: 6px 2px;
-  background: rgba(148, 163, 184, 0.14);
+  margin: 4px 2px;
+  background: rgba(172, 179, 180, 0.1);
 }
 </style>
