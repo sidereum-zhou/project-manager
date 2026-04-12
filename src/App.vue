@@ -1,5 +1,5 @@
 <template>
-  <n-config-provider :theme="darkTheme" :theme-overrides="themeOverrides">
+  <n-config-provider :theme="lightTheme" :theme-overrides="themeOverrides">
     <n-message-provider>
       <n-dialog-provider>
         <AppLayout />
@@ -13,41 +13,64 @@ import {
   NConfigProvider,
   NMessageProvider,
   NDialogProvider,
-  darkTheme,
+  lightTheme,
   type GlobalThemeOverrides,
 } from 'naive-ui';
 import AppLayout from './AppLayout.vue';
 
 const themeOverrides: GlobalThemeOverrides = {
   common: {
-    primaryColor: '#62d4b8',
-    primaryColorHover: '#8de4d0',
-    primaryColorPressed: '#42c2a5',
-    primaryColorSuppl: '#62d4b8',
-    infoColor: '#79b6ff',
-    successColor: '#62d4b8',
-    warningColor: '#f0b35f',
-    errorColor: '#ff8299',
-    bodyColor: '#08101d',
-    cardColor: '#101826',
-    modalColor: '#101826',
-    popoverColor: '#131f34',
-    tableColor: '#101826',
-    actionColor: 'rgba(255, 255, 255, 0.04)',
-    hoverColor: 'rgba(255, 255, 255, 0.06)',
-    borderColor: 'rgba(148, 163, 184, 0.18)',
-    textColorBase: '#f4f7fb',
-    textColor1: '#f4f7fb',
-    textColor2: '#d4deec',
-    textColor3: '#90a0b7',
-    inputColor: '#111b2b',
-    dividerColor: 'rgba(148, 163, 184, 0.14)',
-    scrollbarColor: 'rgba(148, 163, 184, 0.32)',
-    scrollbarColorHover: 'rgba(148, 163, 184, 0.48)',
-    borderRadius: '16px',
-    borderRadiusSmall: '12px',
-    fontFamily: '"Aptos", "Segoe UI Variable Text", "Microsoft YaHei UI", "PingFang SC", sans-serif',
+    primaryColor: '#0053db',
+    primaryColorHover: '#0048c1',
+    primaryColorPressed: '#003798',
+    primaryColorSuppl: '#0053db',
+    infoColor: '#0053db',
+    successColor: '#15803d',
+    warningColor: '#d97706',
+    errorColor: '#9f403d',
+    bodyColor: '#f9f9f9',
+    cardColor: '#ffffff',
+    modalColor: '#ffffff',
+    popoverColor: '#ffffff',
+    tableColor: '#ffffff',
+    actionColor: '#f2f4f4',
+    hoverColor: '#e4e9ea',
+    borderColor: 'rgba(172, 179, 180, 0.15)',
+    textColorBase: '#2d3435',
+    textColor1: '#2d3435',
+    textColor2: '#596061',
+    textColor3: '#757c7d',
+    inputColor: '#ffffff',
+    dividerColor: 'rgba(172, 179, 180, 0.1)',
+    scrollbarColor: 'rgba(172, 179, 180, 0.32)',
+    scrollbarColorHover: 'rgba(172, 179, 180, 0.48)',
+    borderRadius: '0.125rem',
+    borderRadiusSmall: '0.125rem',
+    fontFamily: '"Inter", sans-serif',
     fontFamilyMono: '"JetBrains Mono", "Cascadia Code", "Consolas", monospace',
+  },
+  Button: {
+    borderRadiusMedium: '0.125rem',
+    borderRadiusSmall: '0.125rem',
+    borderRadiusLarge: '0.125rem',
+  },
+  Input: {
+    borderRadius: '0.25rem',
+  },
+  Card: {
+    borderRadius: '0.5rem',
+  },
+  Tabs: {
+    tabTextColorLine: '#596061',
+    tabTextColorActiveLine: '#0053db',
+    tabTextColorHoverLine: '#0053db',
+    barColor: '#0053db',
+  },
+  Tag: {
+    borderRadius: '0.25rem',
+  },
+  Dialog: {
+    borderRadius: '0.5rem',
   },
 };
 </script>
