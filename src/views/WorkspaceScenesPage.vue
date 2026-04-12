@@ -270,199 +270,33 @@ function formatDate(value: string): string {
 </script>
 
 <style scoped>
-.scenes-page {
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  height: 100%;
-  padding: 18px;
-  overflow: auto;
-}
-
-.scenes-hero,
-.scenes-editor,
-.scenes-list {
-  padding: 20px;
-}
-
-.scenes-hero {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 20px;
-}
-
-.scenes-hero-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.scenes-title {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-}
-
-.scenes-hero-side {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 10px;
-}
-
-.scenes-layout {
-  display: grid;
-  grid-template-columns: minmax(320px, 0.95fr) minmax(0, 1.05fr);
-  gap: 16px;
-  min-height: 0;
-  flex: 1;
-}
-
-.scenes-editor,
-.scenes-list {
-  display: flex;
-  flex-direction: column;
-  gap: 18px;
-  min-height: 0;
-}
-
-.scenes-form {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.scenes-form-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 12px;
-}
-
-.scenes-switch-row {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin: 4px 0 10px;
-  padding: 14px 16px;
-  border-radius: 16px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-}
-
-.scenes-switch-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-}
-
-.scenes-switch-copy strong {
-  font-size: 14px;
-}
-
-.scenes-switch-copy small {
-  color: var(--pm-text-secondary);
-  line-height: 1.6;
-}
-
-.scenes-form-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.scenes-list-body {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  overflow: auto;
-  padding-right: 4px;
-}
-
-.scene-card {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 14px;
-  padding: 16px;
-  border-radius: 18px;
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(148, 163, 184, 0.1);
-}
-
-.scene-card-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-width: 0;
-}
-
-.scene-card-head {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  flex-wrap: wrap;
-}
-
-.scene-card-head strong {
-  font-size: 16px;
-}
-
-.scene-card-tab {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: rgba(121, 182, 255, 0.14);
-  color: #9cc8ff;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.scene-card-tag {
-  display: inline-flex;
-  align-items: center;
-  height: 24px;
-  padding: 0 10px;
-  border-radius: 999px;
-  background: rgba(98, 212, 184, 0.14);
-  color: #8de4d0;
-  font-size: 11px;
-  font-weight: 700;
-}
-
-.scene-card-description {
-  color: var(--pm-text-secondary);
-  line-height: 1.6;
-}
-
-.scene-card-meta {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--pm-text-tertiary);
-}
-
-.scene-card-actions {
-  display: flex;
-  gap: 8px;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-}
-
-@media (max-width: 1080px) {
-  .scenes-layout {
-    grid-template-columns: 1fr;
-  }
-}
-
+.scenes-page { display: flex; flex-direction: column; gap: 12px; height: 100%; padding: 24px; overflow: auto; }
+.scenes-hero, .scenes-editor, .scenes-list { padding: 20px; }
+.scenes-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.scenes-hero-copy { display: flex; flex-direction: column; gap: 6px; }
+.scenes-title { font-size: 1.5rem; font-weight: 700; color: var(--pm-text-primary); letter-spacing: -0.02em; }
+.scenes-hero-side { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.scenes-layout { display: grid; grid-template-columns: minmax(300px, 0.95fr) minmax(0, 1.05fr); gap: 12px; min-height: 0; flex: 1; }
+.scenes-editor, .scenes-list { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
+.scenes-form { display: flex; flex-direction: column; gap: 4px; }
+.scenes-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.scenes-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 8px; padding: 12px 16px; border-radius: var(--pm-radius-sm); background: var(--pm-surface-container-low); border: none; }
+.scenes-switch-copy { display: flex; flex-direction: column; gap: 2px; }
+.scenes-switch-copy strong { font-size: 0.8125rem; color: var(--pm-text-primary); }
+.scenes-switch-copy small { color: var(--pm-text-secondary); line-height: 1.5; font-size: 0.6875rem; }
+.scenes-form-actions { display: flex; gap: 8px; }
+.scenes-list-body { display: flex; flex-direction: column; gap: 8px; overflow: auto; padding-right: 4px; }
+.scene-card { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; padding: 14px 16px; border-radius: var(--pm-radius-sm); background: var(--pm-surface-container-low); border: none; }
+.scene-card-copy { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+.scene-card-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.scene-card-head strong { font-size: 0.8125rem; color: var(--pm-text-primary); }
+.scene-card-tab { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--pm-radius-xs); background: rgba(0, 83, 219, 0.08); color: var(--pm-primary); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; }
+.scene-card-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--pm-radius-xs); background: var(--pm-success-bg); color: var(--pm-success); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; }
+.scene-card-description { color: var(--pm-text-secondary); line-height: 1.5; font-size: 0.75rem; }
+.scene-card-meta { display: flex; flex-wrap: wrap; gap: 8px; font-size: 0.625rem; color: var(--pm-text-tertiary); }
+.scene-card-actions { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; }
+@media (max-width: 1080px) { .scenes-layout { grid-template-columns: 1fr; } }
 @media (max-width: 720px) {
-  .scenes-form-grid,
-  .scene-card {
-    grid-template-columns: 1fr;
-    flex-direction: column;
-  }
+  .scenes-form-grid, .scene-card { grid-template-columns: 1fr; flex-direction: column; }
 }
 </style>

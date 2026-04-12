@@ -102,63 +102,20 @@ function parseDiff(content: string): ParsedLine[] {
 .git-diff-viewer {
   flex: 1;
   min-height: 0;
-  border-radius: 16px;
-  background: #07111f;
-  border: 1px solid rgba(148, 163, 184, 0.14);
+  border-radius: var(--pm-radius-md);
+  background: #0f172a;
+  border: 1px solid rgba(15, 23, 42, 0.2);
   overflow: hidden;
 }
-
-.git-diff-empty {
-  height: 100%;
-  min-height: 220px;
-}
-
-.git-diff-scroll {
-  height: 100%;
-  overflow: auto;
-  font-family: var(--pm-font-code);
-  font-size: 12px;
-}
-
-.git-diff-line {
-  display: grid;
-  grid-template-columns: 56px 56px minmax(0, 1fr);
-  min-height: 24px;
-  border-bottom: 1px solid rgba(148, 163, 184, 0.04);
-}
-
-.git-diff-line.meta {
-  background: rgba(121, 182, 255, 0.08);
-}
-
-.git-diff-line.hunk {
-  background: rgba(179, 156, 255, 0.12);
-}
-
-.git-diff-line.add {
-  background: rgba(98, 212, 184, 0.08);
-}
-
-.git-diff-line.remove {
-  background: rgba(255, 130, 153, 0.08);
-}
-
-.git-diff-gutter {
-  display: inline-flex;
-  align-items: center;
-  justify-content: flex-end;
-  padding: 0 10px;
-  color: var(--pm-text-tertiary);
-  background: rgba(255, 255, 255, 0.02);
-  border-right: 1px solid rgba(148, 163, 184, 0.06);
-  user-select: none;
-}
-
-.git-diff-text {
-  display: block;
-  padding: 4px 12px;
-  color: #d7e0ee;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
+.git-diff-empty { height: 100%; min-height: 200px; }
+.git-diff-scroll { height: 100%; overflow: auto; font-family: var(--pm-font-code); font-size: 0.6875rem; }
+.git-diff-line { display: grid; grid-template-columns: 48px 48px minmax(0, 1fr); min-height: 22px; }
+.git-diff-line.meta { background: rgba(59, 130, 246, 0.08); }
+.git-diff-line.hunk { background: rgba(168, 85, 247, 0.08); }
+.git-diff-line.add { background: rgba(34, 197, 94, 0.06); }
+.git-diff-line.remove { background: rgba(239, 68, 68, 0.06); }
+.git-diff-gutter { display: inline-flex; align-items: center; justify-content: flex-end; padding: 0 8px; color: #475569; background: rgba(255, 255, 255, 0.02); border-right: 1px solid rgba(255, 255, 255, 0.04); user-select: none; font-size: 0.625rem; }
+.git-diff-text { display: block; padding: 2px 10px; color: #e2e8f0; white-space: pre-wrap; word-break: break-word; }
+.git-diff-line.add .git-diff-text { color: #4ade80; }
+.git-diff-line.remove .git-diff-text { color: #f87171; }
 </style>
