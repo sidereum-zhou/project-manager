@@ -8,6 +8,7 @@ import { registerTerminalIpc } from './ipc/terminal.ipc';
 import { registerGitIpc } from './ipc/git.ipc';
 import { registerWorkspaceIpc } from './ipc/workspace.ipc';
 import { registerSystemIpc } from './ipc/system.ipc';
+import { registerClaudeIpc, stopAllClaudeRuns } from './ipc/claude-agent.ipc';
 
 let mainWindow: BrowserWindow | null = null;
 let processManager: ProcessManager;
@@ -23,6 +24,7 @@ function initApp(): void {
   registerGitIpc();
   registerWorkspaceIpc(store);
   registerSystemIpc();
+  void registerClaudeIpc();
 }
 
 function createWindow(): void {
@@ -59,6 +61,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   processManager.stopAll();
+  stopAllClaudeRuns();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -66,6 +69,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   processManager.stopAll();
+  stopAllClaudeRuns();
 });
 
 app.on('activate', () => {

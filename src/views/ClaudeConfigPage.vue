@@ -68,6 +68,10 @@
       </section>
 
       <n-tabs v-model:value="activeSection" type="line" animated class="claude-tabs">
+        <n-tab-pane name="console" tab="Console">
+          <ClaudeAgentConsole :project="project" />
+        </n-tab-pane>
+
         <n-tab-pane name="subagents" tab="Subagents">
           <ClaudeSubagentWorkbench :project="project" @updated="loadClaudeConfig" />
         </n-tab-pane>
@@ -242,6 +246,7 @@ import { NButton, NTabPane, NTabs } from 'naive-ui';
 import { electronApi } from '@/api/electron-api';
 import type { Project } from '@/types/project';
 import ClaudeSubagentWorkbench from '@/components/ClaudeSubagentWorkbench.vue';
+import ClaudeAgentConsole from '@/components/ClaudeAgentConsole.vue';
 
 interface ClaudeTextFile {
   exists: boolean;
@@ -285,7 +290,7 @@ const settingsFile = ref<ClaudeSettingsFile>({
 });
 const commandFiles = ref<ClaudeCommandFile[]>([]);
 const selectedCommandPath = ref<string | null>(null);
-const activeSection = ref<'subagents' | 'files'>('subagents');
+const activeSection = ref<'console' | 'subagents' | 'files'>('console');
 const subagentCount = ref(0);
 
 const hasClaudeDir = computed(() => settingsFile.value.exists || commandFiles.value.length > 0 || subagentCount.value > 0);

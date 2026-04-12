@@ -19,6 +19,8 @@
     "electron:build": "npm run build && electron-builder"
   },
   "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "^0.2.104",
+    "@anthropic-ai/claude-code": "^2.1.104",
     "@vicons/ionicons5": "^0.12.0",
     "naive-ui": "^2.38.0",
     "pinia": "^2.1.0",

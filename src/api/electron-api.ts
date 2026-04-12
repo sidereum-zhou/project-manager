@@ -7,6 +7,18 @@ import type {
   ServiceLogEntry,
   WorkspaceScene,
 } from '@/types/project';
+import type {
+  ClaudeApprovalDecision,
+  ClaudeApprovalRequest,
+  ClaudeQuestionAnswer,
+  ClaudeQuestionRequest,
+  ClaudeRun,
+  ClaudeRunEvent,
+  ClaudeStartRunOptions,
+  ClaudeStartRunResult,
+  ClaudeSubagentInvocation,
+  ClaudeTodoItem,
+} from '@/types/claude';
 
 export interface DetectedProject {
   name: string;
@@ -291,5 +303,70 @@ export const electronApi = {
     uptimeSeconds: number;
   }> {
     return api.getSystemInfo();
+  },
+
+  // Claude Agent
+  async claudeStartRun(projectId: string, projectPath: string, options: ClaudeStartRunOptions): Promise<ClaudeStartRunResult> {
+    return api.claudeStartRun(projectId, projectPath, options);
+  },
+
+  async claudeResumeRun(runId: string, projectPath: string, prompt?: string): Promise<ClaudeStartRunResult> {
+    return api.claudeResumeRun(runId, projectPath, prompt);
+  },
+
+  async claudeStopRun(runId: string): Promise<void> {
+    return api.claudeStopRun(runId);
+  },
+
+  async claudeSendUserMessage(runId: string, message: string): Promise<void> {
+    return api.claudeSendUserMessage(runId, message);
+  },
+
+  async claudeApproveTool(decision: ClaudeApprovalDecision): Promise<void> {
+    return api.claudeApproveTool(decision);
+  },
+
+  async claudeAnswerQuestion(answer: ClaudeQuestionAnswer): Promise<void> {
+    return api.claudeAnswerQuestion(answer);
+  },
+
+  async claudeListRuns(projectId?: string): Promise<ClaudeRun[]> {
+    return api.claudeListRuns(projectId);
+  },
+
+  async claudeGetRunDetail(runId: string): Promise<ClaudeRun | null> {
+    return api.claudeGetRunDetail(runId);
+  },
+
+  async claudeGetRunEvents(runId: string): Promise<ClaudeRunEvent[]> {
+    return api.claudeGetRunEvents(runId);
+  },
+
+  async claudeGetPendingApprovals(runId: string): Promise<ClaudeApprovalRequest[]> {
+    return api.claudeGetPendingApprovals(runId);
+  },
+
+  async claudeGetPendingQuestions(runId: string): Promise<ClaudeQuestionRequest[]> {
+    return api.claudeGetPendingQuestions(runId);
+  },
+
+  async claudeGetTodos(runId: string): Promise<ClaudeTodoItem[]> {
+    return api.claudeGetTodos(runId);
+  },
+
+  async claudeGetSubagents(runId: string): Promise<ClaudeSubagentInvocation[]> {
+    return api.claudeGetSubagents(runId);
+  },
+
+  async claudeGetRunHistory(projectId?: string): Promise<ClaudeRun[]> {
+    return api.claudeGetRunHistory(projectId);
+  },
+
+  async claudeDeleteRun(runId: string): Promise<boolean> {
+    return api.claudeDeleteRun(runId);
+  },
+
+  onClaudeEvent(callback: (event: ClaudeRunEvent) => void): () => void {
+    return api.onClaudeEvent(callback);
   },
 };

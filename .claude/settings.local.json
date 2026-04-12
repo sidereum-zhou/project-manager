@@ -6,7 +6,15 @@
       "Bash(npx vue-tsc:*)",
       "Bash(npx vite:*)",
       "Bash(npm run:*)",
-      "WebSearch"
+      "WebSearch",
+      "Bash(ls src/components/ClaudeSubagentWorkbench.vue src/views/ClaudeConfigPage.vue docs/superpowers/plans/2026-04-12-claude-agent-console-plan.md)",
+      "Bash(ls .claude/commands/)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"const pkg = require\\('./node_modules/@anthropic-ai/claude-code/package.json'\\); console.log\\(JSON.stringify\\(Object.keys\\(pkg.exports || {}\\), null, 2\\)\\)\")",
+      "Bash(node -e ':*)",
+      "Bash(npm info:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"const pkg = require\\('./node_modules/@anthropic-ai/claude-agent-sdk/package.json'\\); console.log\\(JSON.stringify\\(pkg.optionalDependencies || {}, null, 2\\)\\)\")"
     ]
   }
 }

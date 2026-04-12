@@ -13,7 +13,11 @@ export default defineConfig({
           build: {
             outDir: 'dist-electron',
             rollupOptions: {
-              external: ['node-pty'],
+              external: [
+                'node-pty',
+                '@anthropic-ai/claude-agent-sdk',
+                '@anthropic-ai/claude-code',
+              ],
             },
           },
         },

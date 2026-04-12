@@ -95,6 +95,43 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // System
   getSystemInfo: () => ipcRenderer.invoke('system:info'),
 
+  // Claude Agent
+  claudeStartRun: (projectId: string, projectPath: string, options: any) =>
+    ipcRenderer.invoke('claude:startRun', projectId, projectPath, options),
+  claudeResumeRun: (runId: string, projectPath: string, prompt?: string) =>
+    ipcRenderer.invoke('claude:resumeRun', runId, projectPath, prompt),
+  claudeStopRun: (runId: string) =>
+    ipcRenderer.invoke('claude:stopRun', runId),
+  claudeSendUserMessage: (runId: string, message: string) =>
+    ipcRenderer.invoke('claude:sendUserMessage', runId, message),
+  claudeApproveTool: (decision: any) =>
+    ipcRenderer.invoke('claude:approveTool', decision),
+  claudeAnswerQuestion: (answer: any) =>
+    ipcRenderer.invoke('claude:answerQuestion', answer),
+  claudeListRuns: (projectId?: string) =>
+    ipcRenderer.invoke('claude:listRuns', projectId),
+  claudeGetRunDetail: (runId: string) =>
+    ipcRenderer.invoke('claude:getRunDetail', runId),
+  claudeGetRunEvents: (runId: string) =>
+    ipcRenderer.invoke('claude:getRunEvents', runId),
+  claudeGetPendingApprovals: (runId: string) =>
+    ipcRenderer.invoke('claude:getPendingApprovals', runId),
+  claudeGetPendingQuestions: (runId: string) =>
+    ipcRenderer.invoke('claude:getPendingQuestions', runId),
+  claudeGetTodos: (runId: string) =>
+    ipcRenderer.invoke('claude:getTodos', runId),
+  claudeGetSubagents: (runId: string) =>
+    ipcRenderer.invoke('claude:getSubagents', runId),
+  claudeGetRunHistory: (projectId?: string) =>
+    ipcRenderer.invoke('claude:getRunHistory', projectId),
+  claudeDeleteRun: (runId: string) =>
+    ipcRenderer.invoke('claude:deleteRun', runId),
+  onClaudeEvent: (callback: (event: any) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: any) => callback(payload);
+    ipcRenderer.on('claude:event', listener);
+    return () => ipcRenderer.removeListener('claude:event', listener);
+  },
+
   // Scenes / Architecture
   listScenes: (projectId: string) => ipcRenderer.invoke('scene:list', projectId),
   createScene: (projectId: string, payload: any) => ipcRenderer.invoke('scene:create', projectId, payload),
