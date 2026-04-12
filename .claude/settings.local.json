@@ -14,7 +14,10 @@
       "Bash(node -e ':*)",
       "Bash(npm info:*)",
       "Bash(npx tsc:*)",
-      "Bash(node -e \"const pkg = require\\('./node_modules/@anthropic-ai/claude-agent-sdk/package.json'\\); console.log\\(JSON.stringify\\(pkg.optionalDependencies || {}, null, 2\\)\\)\")"
+      "Bash(node -e \"const pkg = require\\('./node_modules/@anthropic-ai/claude-agent-sdk/package.json'\\); console.log\\(JSON.stringify\\(pkg.optionalDependencies || {}, null, 2\\)\\)\")",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git commit:*)"
     ]
   }
 }
