@@ -343,7 +343,7 @@ export class ClaudeAgentRunner {
       abortController: active.abortController,
       tools: { type: 'preset', preset: 'claude_code' },
       persistSession: true,
-      includePartialMessages: false,
+      includePartialMessages: true,
       includeHookEvents: false,
       ...(pathToClaudeCodeExecutable ? { pathToClaudeCodeExecutable } : {}),
     };
@@ -717,8 +717,27 @@ export class ClaudeAgentRunner {
         break;
       }
 
+      case 'stream_event': {
+        // Streaming delta — forward text deltas to renderer for live preview
+        const streamEvent = msg.event as Record<string, unknown>;
+        const eventType = streamEvent?.type as string;
+        if (eventType === 'content_block_delta') {
+          const delta = streamEvent.delta as Record<string, unknown> | undefined;
+          const deltaType = delta?.type as string;
+          if (deltaType === 'text_delta') {
+            const text = (delta.text as string) ?? '';
+            if (text) {
+              this.emitEvent(active, 'partial', {
+                text,
+              }, sessionId, parentToolUseId);
+            }
+          }
+        }
+        break;
+      }
+
       default:
-        // Other event types (partial, compact_boundary, status, etc.)
+        // Other event types (compact_boundary, status, etc.)
         // are informational and can be surfaced later
         break;
     }

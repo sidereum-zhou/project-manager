@@ -329,8 +329,13 @@ async function handleSend(): Promise<void> {
 
   try {
     if (store.currentRun && (store.currentRun.status === 'running' || store.currentRun.status === 'waiting_approval' || store.currentRun.status === 'waiting_question')) {
+      // Mid-conversation: send follow-up in the same session
       await store.sendUserMessage(store.currentRun.id, text);
+    } else if (store.currentRun && (store.currentRun.status === 'completed' || store.currentRun.status === 'stopped' || store.currentRun.status === 'failed')) {
+      // Continue an existing conversation
+      await store.resumeRun(store.currentRun.id, props.project.path, text);
     } else {
+      // First message: start a new run
       await store.startRun(props.project.id, props.project.path, text);
     }
   } finally {

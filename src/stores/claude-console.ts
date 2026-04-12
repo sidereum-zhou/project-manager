@@ -196,11 +196,27 @@ export const useClaudeConsoleStore = defineStore('claude-console', () => {
           pendingAssistantIsSubagent = isSubagent;
         }
         if (text) {
-          pendingAssistantText += (pendingAssistantText ? '\n' : '') + text;
+          // assistant events carry the full accumulated text, replace instead of append
+          pendingAssistantText = text;
         }
         updateLiveMessage();
         if (toolUseCount > 0) {
           refreshCurrentRunState(runId);
+        }
+        break;
+      }
+
+      case 'partial': {
+        // Streaming text delta — append to live preview
+        const text = (event.payload.text as string) ?? '';
+        if (text) {
+          pendingAssistantText += text;
+          if (!pendingAssistantTimestamp) {
+            pendingAssistantTimestamp = event.timestamp;
+            pendingAssistantSessionId = event.sessionId ?? '';
+            pendingAssistantIsSubagent = isSubagent;
+          }
+          updateLiveMessage();
         }
         break;
       }
