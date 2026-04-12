@@ -1,6 +1,180 @@
 <template>
   <div class="cac-console">
-    <!-- ── Input bar (top) ──────────────────────────────── -->
+    <!-- ── Header bar ───────────────────────────────────── -->
+    <div class="cac-header">
+      <div class="cac-header-left">
+        <n-select
+          :value="store.currentRunId"
+          :options="runOptions"
+          size="small"
+          :consistent-menu-width="false"
+          style="width: 220px"
+          @update:value="handleRunSwitch"
+        />
+        <template v-if="store.currentRun">
+          <span
+            class="cac-run-status"
+            :class="`cac-run-status--${store.currentRun.status}`"
+          ></span>
+          <strong class="cac-header-title">{{ store.currentRun.title }}</strong>
+          <span v-if="store.currentRun.model" class="pm-pill pm-pill--dim">{{ store.currentRun.model }}</span>
+        </template>
+      </div>
+      <div class="cac-header-right">
+        <n-button
+          v-if="store.isRunning || store.isWaiting"
+          size="tiny"
+          quaternary
+          @click="handleStop"
+        >
+          <template #icon><span class="material-symbols-outlined">stop</span></template>
+          停止
+        </n-button>
+        <n-button
+          v-if="store.currentRun && (store.currentRun.status === 'completed' || store.currentRun.status === 'stopped')"
+          size="tiny"
+          quaternary
+          @click="handleResume"
+        >
+          <template #icon><span class="material-symbols-outlined">replay</span></template>
+          继续
+        </n-button>
+        <n-button
+          size="tiny"
+          quaternary
+          :type="drawerOpen ? 'primary' : 'default'"
+          @click="drawerOpen = !drawerOpen"
+        >
+          <template #icon><span class="material-symbols-outlined">side_navigation</span></template>
+        </n-button>
+      </div>
+    </div>
+
+    <!-- ── Main area: chat + drawer ─────────────────────── -->
+    <div class="cac-main">
+      <!-- Chat messages -->
+      <section class="cac-chat">
+        <!-- Empty state -->
+        <div v-if="!store.currentRun && store.currentConversation.length === 0" class="cac-empty pm-empty-state">
+          <span class="material-symbols-outlined cac-empty-icon">psychology</span>
+          <strong>向 Claude 发送指令开始工作</strong>
+          <span>输入你的需求，Claude 会在项目目录中执行任务。</span>
+        </div>
+
+        <template v-else>
+          <div class="cac-messages">
+            <template v-for="msg in store.currentConversation" :key="msg.id">
+              <!-- User bubble -->
+              <div v-if="msg.role === 'user'" class="cac-bubble cac-bubble--user">
+                <div class="cac-bubble-content">
+                  <pre v-if="msg.textContent" class="cac-bubble-text">{{ msg.textContent }}</pre>
+                </div>
+                <span class="cac-bubble-time">{{ formatRelativeTime(msg.timestamp) }}</span>
+              </div>
+
+              <!-- Assistant bubble -->
+              <div v-else-if="msg.role === 'assistant' && !msg.result" class="cac-bubble cac-bubble--assistant">
+                <div class="cac-bubble-avatar">
+                  <span class="material-symbols-outlined">psychology</span>
+                </div>
+                <div class="cac-bubble-body">
+                  <div class="cac-bubble-meta">
+                    <span class="cac-bubble-name">
+                      {{ msg.subagentName ? `Subagent: ${msg.subagentName}` : 'Claude' }}
+                    </span>
+                    <span class="cac-bubble-time">{{ formatRelativeTime(msg.timestamp) }}</span>
+                  </div>
+                  <pre v-if="msg.textContent" class="cac-bubble-text">{{ msg.textContent }}</pre>
+                  <!-- Tool calls -->
+                  <div v-if="msg.toolCalls.length > 0" class="cac-tools">
+                    <button
+                      class="cac-tools-toggle"
+                      :class="{ 'cac-tools-toggle--open': expandedTools.has(msg.id) }"
+                      @click="toggleToolExpand(msg.id)"
+                    >
+                      <span class="material-symbols-outlined cac-tools-icon">build</span>
+                      <span>{{ msg.toolCalls.length }} 个工具调用</span>
+                      <span class="material-symbols-outlined cac-tools-chevron">
+                        {{ expandedTools.has(msg.id) ? 'expand_less' : 'expand_more' }}
+                      </span>
+                    </button>
+                    <div v-if="expandedTools.has(msg.id)" class="cac-tools-list">
+                      <div
+                        v-for="tool in msg.toolCalls"
+                        :key="tool.id"
+                        class="cac-tool-item"
+                        @click="toggleToolDetail(tool.id)"
+                      >
+                        <div class="cac-tool-head">
+                          <span
+                            class="cac-tool-status"
+                            :class="`cac-tool-status--${tool.status}`"
+                          >
+                            <span class="material-symbols-outlined">
+                              {{ tool.status === 'running' ? 'sync' : tool.status === 'success' ? 'check_circle' : 'error' }}
+                            </span>
+                          </span>
+                          <span class="cac-tool-name">{{ tool.displayName || tool.toolName }}</span>
+                          <span v-if="tool.durationMs" class="cac-tool-duration">{{ formatDuration(tool.durationMs) }}</span>
+                          <span class="material-symbols-outlined cac-tool-expand">
+                            {{ expandedToolDetails.has(tool.id) ? 'expand_less' : 'expand_more' }}
+                          </span>
+                        </div>
+                        <div v-if="expandedToolDetails.has(tool.id)" class="cac-tool-detail">
+                          <pre v-if="tool.input" class="cac-tool-output">{{ tool.input }}</pre>
+                          <pre v-if="tool.output" class="cac-tool-output">{{ tool.output }}</pre>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Result bubble -->
+              <div
+                v-else-if="msg.role === 'assistant' && msg.result"
+                class="cac-bubble cac-bubble--result"
+                :class="`cac-bubble--result-${msg.result.status}`"
+              >
+                <div class="cac-result-icon">
+                  <span class="material-symbols-outlined">
+                    {{ msg.result.status === 'success' ? 'check_circle' : 'error' }}
+                  </span>
+                </div>
+                <div class="cac-result-body">
+                  <div class="cac-result-stats">
+                    <span>{{ formatDuration(msg.result.durationMs) }}</span>
+                    <span v-if="msg.result.costUsd">${{ Number(msg.result.costUsd).toFixed(4) }}</span>
+                    <span v-if="msg.result.totalTurns">{{ msg.result.totalTurns }} 轮</span>
+                  </div>
+                  <pre v-if="msg.result.text" class="cac-result-text">{{ msg.result.text }}</pre>
+                </div>
+              </div>
+
+              <!-- Approval panel (inline in chat flow) -->
+              <ClaudeApprovalPanel
+                v-if="store.hasPendingInput"
+                :approvals="store.pendingApprovals"
+                :questions="store.pendingQuestions"
+                @approve="handleApprove"
+                @answer="handleAnswer"
+              />
+            </template>
+
+            <!-- Auto-scroll anchor -->
+            <div ref="scrollAnchor" class="cac-scroll-anchor"></div>
+          </div>
+        </template>
+      </section>
+
+      <!-- Collapsible drawer -->
+      <aside v-if="drawerOpen" class="cac-drawer">
+        <ClaudeTodoPanel :todos="store.todos" />
+        <ClaudeSubagentTree :invocations="store.subagents" />
+      </aside>
+    </div>
+
+    <!-- ── Input bar ────────────────────────────────────── -->
     <div class="cac-input-bar">
       <div class="cac-input-wrap">
         <span class="material-symbols-outlined cac-input-icon">smart_toy</span>
@@ -12,6 +186,15 @@
           @keydown.enter.exact="handleSend"
         />
         <n-button
+          v-if="store.isRunning || store.isWaiting"
+          size="small"
+          type="warning"
+          @click="handleStop"
+        >
+          <template #icon><span class="material-symbols-outlined">stop</span></template>
+          停止
+        </n-button>
+        <n-button
           size="small"
           type="primary"
           :loading="sending"
@@ -22,230 +205,17 @@
         </n-button>
       </div>
     </div>
-
-    <!-- ── Main area: sidebar + stream ──────────────────── -->
-    <div class="cac-main">
-      <!-- Left sidebar: run list -->
-      <aside class="cac-sidebar">
-        <div class="cac-sidebar-header">
-          <span class="pm-kicker">Runs</span>
-          <n-button size="tiny" quaternary @click="refreshRuns">
-            <template #icon><span class="material-symbols-outlined">refresh</span></template>
-          </n-button>
-        </div>
-
-        <div v-if="store.sortedRuns.length === 0" class="cac-sidebar-empty">
-          还没有运行记录
-        </div>
-
-        <div v-else class="cac-run-list">
-          <button
-            v-for="run in store.sortedRuns"
-            :key="run.id"
-            class="cac-run-item"
-            :class="{ active: store.currentRunId === run.id }"
-            @click="store.selectRun(run.id)"
-          >
-            <div class="cac-run-head">
-              <span class="cac-run-status" :class="`cac-run-status--${run.status}`"></span>
-              <strong class="cac-run-title">{{ truncate(run.title, 40) }}</strong>
-            </div>
-            <div class="cac-run-meta">
-              <span>{{ formatRelativeTime(run.updatedAt) }}</span>
-              <span v-if="run.status === 'completed'">· {{ run.numTurns }} 轮</span>
-            </div>
-            <button
-              v-if="run.status === 'completed' && run.lastMessage"
-              class="cac-run-retry"
-              title="使用相同提示再次运行"
-              @click.stop="retryRun(run)"
-            >
-              <span class="material-symbols-outlined">replay</span>
-              再次运行
-            </button>
-          </button>
-        </div>
-      </aside>
-
-      <!-- Right panel: progress + subagents -->
-      <aside v-if="store.currentRun" class="cac-right">
-        <ClaudeTodoPanel :todos="store.todos" />
-        <ClaudeSubagentTree :invocations="store.subagents" />
-      </aside>
-
-      <!-- Center: event stream -->
-      <section class="cac-stream">
-        <!-- Empty state -->
-        <div v-if="!store.currentRun" class="cac-empty pm-empty-state">
-          <span class="material-symbols-outlined cac-empty-icon">psychology</span>
-          <strong>向 Claude 发送指令开始工作</strong>
-          <span>输入你的需求，Claude 会在项目目录中执行任务。</span>
-        </div>
-
-        <!-- Active run header -->
-        <template v-else>
-          <div class="cac-stream-header">
-            <div class="cac-stream-info">
-              <span class="cac-run-status" :class="`cac-run-status--${store.currentRun.status}`"></span>
-              <strong>{{ store.currentRun.title }}</strong>
-            </div>
-            <div class="cac-stream-actions">
-              <span v-if="store.currentRun.model" class="pm-pill pm-pill--dim">{{ store.currentRun.model }}</span>
-              <n-button
-                v-if="store.isRunning || store.isWaiting"
-                size="tiny"
-                quaternary
-                @click="handleStop"
-              >
-                <template #icon><span class="material-symbols-outlined">stop</span></template>
-                停止
-              </n-button>
-              <n-button
-                v-if="store.currentRun.status === 'completed' || store.currentRun.status === 'stopped'"
-                size="tiny"
-                quaternary
-                @click="handleResume"
-              >
-                <template #icon><span class="material-symbols-outlined">replay</span></template>
-                继续
-              </n-button>
-            </div>
-          </div>
-
-          <!-- Needs your input -->
-          <ClaudeApprovalPanel
-            v-if="store.hasPendingInput"
-            :approvals="store.pendingApprovals"
-            :questions="store.pendingQuestions"
-            @approve="handleApprove"
-            @answer="handleAnswer"
-          />
-
-          <!-- Events -->
-          <div class="cac-events">
-            <div
-              v-for="event in store.currentEvents"
-              :key="event.id"
-              class="cac-event"
-              :class="`cac-event--${event.type}`"
-            >
-              <!-- Init -->
-              <template v-if="event.type === 'init'">
-                <div class="cac-event-icon"><span class="material-symbols-outlined">play_circle</span></div>
-                <div class="cac-event-body">
-                  <span class="cac-event-label">会话已启动</span>
-                  <span v-if="event.payload.model" class="cac-event-detail">{{ event.payload.model }}</span>
-                </div>
-              </template>
-
-              <!-- Assistant -->
-              <template v-else-if="event.type === 'assistant'">
-                <div class="cac-event-icon"><span class="material-symbols-outlined">psychology</span></div>
-                <div class="cac-event-body">
-                  <pre class="cac-event-text">{{ event.payload.text }}</pre>
-                </div>
-              </template>
-
-              <!-- User -->
-              <template v-else-if="event.type === 'user'">
-                <div class="cac-event-icon cac-event-icon--user"><span class="material-symbols-outlined">person</span></div>
-                <div class="cac-event-body">
-                  <pre class="cac-event-text cac-event-text--user">{{ event.payload.content }}</pre>
-                </div>
-              </template>
-
-              <!-- Result -->
-              <template v-else-if="event.type === 'result'">
-                <div class="cac-event-icon" :class="event.payload.is_error ? 'cac-event-icon--error' : 'cac-event-icon--success'">
-                  <span class="material-symbols-outlined">{{ event.payload.is_error ? 'error' : 'check_circle' }}</span>
-                </div>
-                <div class="cac-event-body">
-                  <span class="cac-event-label">
-                    {{ event.payload.subtype === 'success' ? '完成' : event.payload.is_error ? '执行出错' : '已停止' }}
-                  </span>
-                  <span v-if="event.payload.result" class="cac-event-text">{{ truncate(String(event.payload.result), 300) }}</span>
-                  <div class="cac-event-stats">
-                    <span>{{ event.payload.num_turns ?? 0 }} 轮</span>
-                    <span v-if="event.payload.total_cost_usd">${{ Number(event.payload.total_cost_usd).toFixed(4) }}</span>
-                    <span>{{ formatDuration(Number(event.payload.duration_ms) || 0) }}</span>
-                  </div>
-                </div>
-              </template>
-
-              <!-- Tool progress -->
-              <template v-else-if="event.type === 'tool_progress'">
-                <div class="cac-event-icon cac-event-icon--tool"><span class="material-symbols-outlined">build</span></div>
-                <div class="cac-event-body">
-                  <span class="cac-event-label">{{ event.payload.toolName }}</span>
-                </div>
-              </template>
-
-              <!-- Subagent started -->
-              <template v-else-if="event.type === 'subagent_started'">
-                <div class="cac-event-icon cac-event-icon--subagent"><span class="material-symbols-outlined">hub</span></div>
-                <div class="cac-event-body">
-                  <span class="cac-event-label">Subagent: {{ event.payload.agentName }}</span>
-                  <span v-if="event.payload.description" class="cac-event-detail">{{ event.payload.description }}</span>
-                </div>
-              </template>
-
-              <!-- Todo update -->
-              <template v-else-if="event.type === 'todo_update'">
-                <div class="cac-event-icon cac-event-icon--todo"><span class="material-symbols-outlined">checklist</span></div>
-                <div class="cac-event-body">
-                  <div class="cac-todo-list">
-                    <div
-                      v-for="(item, idx) in (event.payload.todos as ClaudeTodoItem[])"
-                      :key="idx"
-                      class="cac-todo-item"
-                      :class="`cac-todo-item--${item.status}`"
-                    >
-                      <span class="material-symbols-outlined cac-todo-check">
-                        {{ item.status === 'completed' ? 'check_box' : item.status === 'in_progress' ? 'indeterminate_check_box' : 'check_box_outline_blank' }}
-                      </span>
-                      <span>{{ item.content }}</span>
-                    </div>
-                  </div>
-                </div>
-              </template>
-
-              <!-- Error -->
-              <template v-else-if="event.type === 'error'">
-                <div class="cac-event-icon cac-event-icon--error"><span class="material-symbols-outlined">error</span></div>
-                <div class="cac-event-body">
-                  <span class="cac-event-label" style="color: var(--pm-error)">错误</span>
-                  <span class="cac-event-text">{{ event.payload.message }}</span>
-                </div>
-              </template>
-
-              <!-- Generic fallback -->
-              <template v-else>
-                <div class="cac-event-icon"><span class="material-symbols-outlined">info</span></div>
-                <div class="cac-event-body">
-                  <span class="cac-event-label">{{ event.type }}</span>
-                </div>
-              </template>
-            </div>
-          </div>
-
-          <!-- Auto-scroll anchor -->
-          <div ref="scrollAnchor" class="cac-scroll-anchor"></div>
-        </template>
-      </section>
-    </div>
   </div>
 </template>
 
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-import type { ClaudeRun } from '@/types/claude';
-import { NButton } from 'naive-ui';
+import { NButton, NSelect } from 'naive-ui';
 import { useClaudeConsoleStore } from '@/stores/claude-console';
 import ClaudeSubagentTree from '@/components/ClaudeSubagentTree.vue';
 import ClaudeApprovalPanel from '@/components/ClaudeApprovalPanel.vue';
 import ClaudeTodoPanel from '@/components/ClaudeTodoPanel.vue';
 import type { Project } from '@/types/project';
-import type { ClaudeTodoItem } from '@/types/claude';
 
 const props = defineProps<{ project: Project }>();
 const store = useClaudeConsoleStore();
@@ -253,11 +223,31 @@ const store = useClaudeConsoleStore();
 const promptText = ref('');
 const sending = ref(false);
 const scrollAnchor = ref<HTMLElement | null>(null);
+function readDrawerOpen(): boolean {
+  try {
+    return localStorage.getItem('claude-console-drawer-open') === 'true';
+  } catch {
+    return false;
+  }
+}
+
+const drawerOpen = ref(readDrawerOpen());
+const expandedTools = ref<Set<string>>(new Set());
+const expandedToolDetails = ref<Set<string>>(new Set());
 
 const inputPlaceholder = computed(() => {
-  if (store.isWaiting) return 'Claude 正在等待你的输入…';
+  if (store.isWaiting) return 'Claude 正在等待你的输入\u2026';
   if (store.isRunning) return '发送追问（可选）';
-  return '输入指令，让 Claude 开始工作…';
+  return '输入指令，让 Claude 开始工作\u2026';
+});
+
+const runOptions = computed(() => {
+  const items = store.sortedRuns.map((run) => ({
+    label: run.title || '未命名 Run',
+    value: run.id,
+  }));
+  items.push({ label: '\u271a 新建 Run', value: '__new__' });
+  return items;
 });
 
 onMounted(() => {
@@ -275,14 +265,51 @@ watch(() => props.project.id, () => {
   void store.loadRuns(props.project.id);
 });
 
-// Auto-scroll to bottom when new events arrive
+// Persist drawer state
+watch(drawerOpen, (val) => {
+  try {
+    localStorage.setItem('claude-console-drawer-open', String(val));
+  } catch {
+    // ignore
+  }
+});
+
+// Auto-scroll when new conversation messages arrive
 watch(
-  () => store.currentEvents.length,
+  () => store.currentConversation.length,
   async () => {
     await nextTick();
     scrollAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   },
 );
+
+function handleRunSwitch(runId: string): void {
+  if (runId === '__new__') {
+    promptText.value = '';
+  } else {
+    store.selectRun(runId);
+  }
+}
+
+function toggleToolExpand(msgId: string): void {
+  const next = new Set(expandedTools.value);
+  if (next.has(msgId)) {
+    next.delete(msgId);
+  } else {
+    next.add(msgId);
+  }
+  expandedTools.value = next;
+}
+
+function toggleToolDetail(toolId: string): void {
+  const next = new Set(expandedToolDetails.value);
+  if (next.has(toolId)) {
+    next.delete(toolId);
+  } else {
+    next.add(toolId);
+  }
+  expandedToolDetails.value = next;
+}
 
 async function handleSend(): Promise<void> {
   const text = promptText.value.trim();
@@ -313,17 +340,6 @@ async function handleResume(): Promise<void> {
   }
 }
 
-async function refreshRuns(): Promise<void> {
-  await store.loadRuns(props.project.id);
-}
-
-async function retryRun(run: ClaudeRun): Promise<void> {
-  if (!run.lastMessage) return;
-  promptText.value = run.lastMessage;
-  await nextTick();
-  await handleSend();
-}
-
 async function handleApprove(approvalId: string, allowed: boolean): Promise<void> {
   if (store.currentRunId) {
     await store.approveTool(store.currentRunId, approvalId, allowed);
@@ -336,11 +352,6 @@ async function handleAnswer(questionId: string, questionText: string, answer: st
   }
 }
 
-function truncate(str: string, max: number): string {
-  if (str.length <= max) return str;
-  return str.slice(0, max) + '…';
-}
-
 function formatRelativeTime(iso: string): string {
   const diff = Date.now() - new Date(iso).getTime();
   if (diff < 60_000) return '刚刚';
@@ -350,7 +361,7 @@ function formatRelativeTime(iso: string): string {
 }
 
 function formatDuration(ms: number): string {
-  if (!ms) return '—';
+  if (!ms) return '\u2014';
   if (ms < 1000) return `${ms}ms`;
   return `${(ms / 1000).toFixed(1)}s`;
 }
@@ -360,160 +371,43 @@ function formatDuration(ms: number): string {
 .cac-console {
   display: flex;
   flex-direction: column;
-  gap: 10px;
   height: 100%;
   min-height: 0;
 }
 
-/* ── Input bar ──────────────────────────────────────── */
+/* ── Header bar ─────────────────────────────────────── */
 
-.cac-input-bar {
-  flex-shrink: 0;
-}
-
-.cac-input-wrap {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 8px 12px;
-  border-radius: var(--pm-radius-sm);
-  background: var(--pm-surface-container-low);
-  border: 1px solid rgba(172, 179, 180, 0.15);
-}
-
-.cac-input-wrap:focus-within {
-  border-color: rgba(0, 83, 219, 0.3);
-}
-
-.cac-input-icon {
-  font-size: 1.125rem;
-  color: var(--pm-primary);
-  flex-shrink: 0;
-}
-
-.cac-input {
-  flex: 1;
-  border: none;
-  background: transparent;
-  color: var(--pm-text-primary);
-  font-size: 0.8125rem;
-  line-height: 1.5;
-  outline: none;
-}
-
-.cac-input::placeholder {
-  color: var(--pm-text-tertiary);
-}
-
-/* ── Main layout ────────────────────────────────────── */
-
-.cac-main {
-  display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 240px;
-  gap: 10px;
-  min-height: 0;
-  flex: 1;
-}
-
-/* ── Sidebar ────────────────────────────────────────── */
-
-.cac-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  min-height: 0;
-  overflow: hidden;
-}
-
-.cac-sidebar-header {
+.cac-header {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(172, 179, 180, 0.15);
   flex-shrink: 0;
 }
 
-.cac-sidebar-empty {
-  color: var(--pm-text-tertiary);
-  font-size: 0.75rem;
-  text-align: center;
-  padding: 20px 0;
-}
-
-.cac-run-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  overflow: auto;
-  min-height: 0;
-}
-
-.cac-run-item {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  padding: 8px 10px;
-  border: 1px solid rgba(172, 179, 180, 0.1);
-  border-radius: var(--pm-radius-sm);
-  background: transparent;
-  cursor: pointer;
-  text-align: left;
-  transition: all 0.12s;
-}
-
-.cac-run-item:hover {
-  background: var(--pm-surface-container-low);
-}
-
-.cac-run-item.active {
-  background: rgba(0, 83, 219, 0.04);
-  border-color: rgba(0, 83, 219, 0.2);
-}
-
-.cac-run-head {
+.cac-header-left {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+  min-width: 0;
+  flex: 1;
 }
 
-.cac-run-title {
+.cac-header-right {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  flex-shrink: 0;
+}
+
+.cac-header-title {
   color: var(--pm-text-primary);
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.8125rem;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.cac-run-meta {
-  display: flex;
-  gap: 6px;
-  color: var(--pm-text-tertiary);
-  font-size: 0.625rem;
-  padding-left: 16px;
-}
-
-.cac-run-retry {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  border: none;
-  background: transparent;
-  color: var(--pm-primary);
-  font-size: 0.625rem;
-  font-weight: 600;
-  cursor: pointer;
-  padding: 2px 0;
-  padding-left: 16px;
-  opacity: 0;
-  transition: opacity 0.12s;
-}
-
-.cac-run-item:hover .cac-run-retry {
-  opacity: 1;
-}
-
-.cac-run-retry .material-symbols-outlined {
-  font-size: 0.75rem;
 }
 
 /* ── Status dot ─────────────────────────────────────── */
@@ -561,186 +455,33 @@ function formatDuration(ms: number): string {
   50% { opacity: 0.4; }
 }
 
-/* ── Stream panel ───────────────────────────────────── */
+/* ── Main layout ────────────────────────────────────── */
 
-.cac-stream {
+.cac-main {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
   min-height: 0;
+  flex: 1;
   overflow: hidden;
 }
 
-.cac-stream-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-  flex-shrink: 0;
-}
+/* ── Chat messages ──────────────────────────────────── */
 
-.cac-stream-info {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  min-width: 0;
-}
-
-.cac-stream-info strong {
-  color: var(--pm-text-primary);
-  font-size: 0.8125rem;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.cac-stream-actions {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-}
-
-/* ── Events ─────────────────────────────────────────── */
-
-.cac-events {
+.cac-chat {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  min-height: 0;
+  flex: 1;
+  overflow: hidden;
+}
+
+.cac-messages {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
   overflow: auto;
+  flex: 1;
+  padding: 12px;
   min-height: 0;
-  flex: 1;
-  padding-right: 2px;
-}
-
-.cac-event {
-  display: flex;
-  gap: 10px;
-  padding: 10px 12px;
-  border-radius: var(--pm-radius-sm);
-  background: var(--pm-surface-container-low);
-  transition: background 0.12s;
-}
-
-.cac-event--result {
-  background: rgba(22, 163, 74, 0.04);
-  border: 1px solid rgba(22, 163, 74, 0.12);
-}
-
-.cac-event--result:has([class*="error"]) {
-  background: rgba(220, 38, 38, 0.04);
-  border-color: rgba(220, 38, 38, 0.12);
-}
-
-.cac-event--error {
-  background: rgba(220, 38, 38, 0.04);
-  border: 1px solid rgba(220, 38, 38, 0.12);
-}
-
-.cac-event-icon {
-  flex-shrink: 0;
-  font-size: 1rem;
-  color: var(--pm-text-tertiary);
-  margin-top: 1px;
-}
-
-.cac-event-icon--user {
-  color: var(--pm-primary);
-}
-
-.cac-event-icon--tool {
-  color: #6366f1;
-}
-
-.cac-event-icon--subagent {
-  color: #8b5cf6;
-}
-
-.cac-event-icon--todo {
-  color: #0891b2;
-}
-
-.cac-event-icon--success {
-  color: #16a34a;
-}
-
-.cac-event-icon--error {
-  color: #dc2626;
-}
-
-.cac-event-body {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  min-width: 0;
-  flex: 1;
-}
-
-.cac-event-label {
-  color: var(--pm-text-secondary);
-  font-size: 0.6875rem;
-  font-weight: 700;
-}
-
-.cac-event-detail {
-  color: var(--pm-text-tertiary);
-  font-size: 0.6875rem;
-  line-height: 1.5;
-}
-
-.cac-event-text {
-  margin: 0;
-  color: var(--pm-text-primary);
-  font-family: var(--pm-font-code);
-  font-size: 0.71875rem;
-  line-height: 1.7;
-  white-space: pre-wrap;
-  word-break: break-word;
-}
-
-.cac-event-text--user {
-  color: var(--pm-text-secondary);
-}
-
-.cac-event-stats {
-  display: flex;
-  gap: 10px;
-  color: var(--pm-text-tertiary);
-  font-size: 0.625rem;
-  font-weight: 600;
-}
-
-/* ── Todo list ──────────────────────────────────────── */
-
-.cac-todo-list {
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-}
-
-.cac-todo-item {
-  display: flex;
-  align-items: flex-start;
-  gap: 6px;
-  font-size: 0.6875rem;
-  color: var(--pm-text-secondary);
-  line-height: 1.5;
-}
-
-.cac-todo-item--completed {
-  text-decoration: line-through;
-  opacity: 0.5;
-}
-
-.cac-todo-item--in_progress {
-  color: var(--pm-primary);
-  font-weight: 600;
-}
-
-.cac-todo-check {
-  font-size: 0.875rem;
-  flex-shrink: 0;
-  margin-top: 1px;
 }
 
 /* ── Empty state ────────────────────────────────────── */
@@ -756,40 +497,335 @@ function formatDuration(ms: number): string {
   opacity: 0.4;
 }
 
-.cac-scroll-anchor {
-  height: 1px;
+/* ── Chat bubbles ───────────────────────────────────── */
+
+.cac-bubble {
+  display: flex;
+  flex-direction: column;
+  max-width: 80%;
+}
+
+.cac-bubble--user {
+  align-self: flex-end;
+}
+
+.cac-bubble--assistant {
+  align-self: flex-start;
+}
+
+.cac-bubble--result {
+  align-self: flex-start;
+}
+
+/* User bubble */
+.cac-bubble--user .cac-bubble-content {
+  background: rgba(0, 83, 219, 0.06);
+  border: 1px solid rgba(0, 83, 219, 0.15);
+  border-radius: 12px 12px 2px 12px;
+  padding: 10px 14px;
+}
+
+.cac-bubble--user .cac-bubble-time {
+  text-align: right;
+  color: var(--pm-text-tertiary);
+  font-size: 0.625rem;
+  margin-top: 2px;
+  padding-right: 4px;
+}
+
+/* Assistant bubble */
+.cac-bubble--assistant {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+}
+
+.cac-bubble-avatar {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--pm-surface-container-low);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.cac-bubble-avatar .material-symbols-outlined {
+  font-size: 1rem;
+  color: var(--pm-primary);
+}
+
+.cac-bubble-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cac-bubble-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cac-bubble-name {
+  color: var(--pm-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+}
+
+.cac-bubble-time {
+  color: var(--pm-text-tertiary);
+  font-size: 0.625rem;
+}
+
+.cac-bubble-text {
+  margin: 0;
+  color: var(--pm-text-primary);
+  font-family: var(--pm-font-code);
+  font-size: 0.71875rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Result bubble ──────────────────────────────────── */
+
+.cac-bubble--result {
+  display: flex;
+  flex-direction: row;
+  gap: 8px;
+  align-self: flex-start;
+  padding: 10px 12px;
+  border-radius: var(--pm-radius-sm);
+  background: rgba(22, 163, 74, 0.04);
+  border: 1px solid rgba(22, 163, 74, 0.12);
+}
+
+.cac-bubble--result-error {
+  background: rgba(220, 38, 38, 0.04);
+  border-color: rgba(220, 38, 38, 0.12);
+}
+
+.cac-result-icon {
+  flex-shrink: 0;
+  display: flex;
+  align-items: flex-start;
+}
+
+.cac-bubble--result .cac-result-icon .material-symbols-outlined {
+  font-size: 1.125rem;
+  color: #16a34a;
+}
+
+.cac-bubble--result-error .cac-result-icon .material-symbols-outlined {
+  color: #dc2626;
+}
+
+.cac-result-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  flex: 1;
+}
+
+.cac-result-stats {
+  display: flex;
+  gap: 10px;
+  color: var(--pm-text-tertiary);
+  font-size: 0.625rem;
+  font-weight: 600;
+}
+
+.cac-result-text {
+  margin: 0;
+  color: var(--pm-text-primary);
+  font-family: var(--pm-font-code);
+  font-size: 0.71875rem;
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+/* ── Tool calls (folded) ────────────────────────────── */
+
+.cac-tools {
+  margin-top: 2px;
+}
+
+.cac-tools-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(99, 102, 241, 0.15);
+  border-radius: var(--pm-radius-sm);
+  background: rgba(99, 102, 241, 0.04);
+  padding: 4px 8px;
+  cursor: pointer;
+  color: var(--pm-text-secondary);
+  font-size: 0.6875rem;
+  transition: background 0.12s;
+}
+
+.cac-tools-toggle:hover {
+  background: rgba(99, 102, 241, 0.08);
+}
+
+.cac-tools-icon {
+  font-size: 0.8125rem;
+  color: #6366f1;
+}
+
+.cac-tools-chevron {
+  font-size: 1rem;
+}
+
+.cac-tools-list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.cac-tool-item {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background 0.12s;
+}
+
+.cac-tool-item:hover {
+  background: var(--pm-surface-container-low);
+}
+
+.cac-tool-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cac-tool-status .material-symbols-outlined {
+  font-size: 0.875rem;
+}
+
+.cac-tool-status--running .material-symbols-outlined {
+  color: var(--pm-primary);
+  animation: cac-pulse 1.5s ease-in-out infinite;
+}
+
+.cac-tool-status--success .material-symbols-outlined {
+  color: #16a34a;
+}
+
+.cac-tool-status--error .material-symbols-outlined {
+  color: #dc2626;
+}
+
+.cac-tool-name {
+  color: var(--pm-text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.cac-tool-duration {
+  color: var(--pm-text-tertiary);
+  font-size: 0.625rem;
   flex-shrink: 0;
 }
 
-/* ── Responsive ─────────────────────────────────────── */
-
-@media (max-width: 720px) {
-  .cac-main {
-    grid-template-columns: 1fr;
-  }
-
-  .cac-sidebar {
-    max-height: 150px;
-  }
+.cac-tool-expand {
+  font-size: 0.875rem;
+  color: var(--pm-text-tertiary);
 }
 
-@media (min-width: 721px) and (max-width: 1080px) {
-  .cac-main {
-    grid-template-columns: 200px minmax(0, 1fr);
-  }
-
-  .cac-right {
-    display: none;
-  }
+.cac-tool-detail {
+  padding-top: 2px;
 }
 
-/* ── Right panel ────────────────────────────────────── */
+.cac-tool-output {
+  margin: 0;
+  color: var(--pm-text-tertiary);
+  font-family: var(--pm-font-code);
+  font-size: 0.625rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 150px;
+  overflow: auto;
+}
 
-.cac-right {
+/* ── Drawer ─────────────────────────────────────────── */
+
+.cac-drawer {
+  width: 240px;
+  flex-shrink: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
   min-height: 0;
   overflow: hidden;
+  border-left: 1px solid rgba(172, 179, 180, 0.15);
+  padding-left: 10px;
+}
+
+/* ── Input bar ──────────────────────────────────────── */
+
+.cac-input-bar {
+  flex-shrink: 0;
+  padding: 8px 12px;
+  border-top: 1px solid rgba(172, 179, 180, 0.15);
+}
+
+.cac-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: var(--pm-radius-sm);
+  background: var(--pm-surface-container-low);
+  border: 1px solid rgba(172, 179, 180, 0.15);
+}
+
+.cac-input-wrap:focus-within {
+  border-color: rgba(0, 83, 219, 0.3);
+}
+
+.cac-input-icon {
+  font-size: 1.125rem;
+  color: var(--pm-primary);
+  flex-shrink: 0;
+}
+
+.cac-input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: var(--pm-text-primary);
+  font-size: 0.8125rem;
+  line-height: 1.5;
+  outline: none;
+}
+
+.cac-input::placeholder {
+  color: var(--pm-text-tertiary);
+}
+
+/* ── Scroll anchor ──────────────────────────────────── */
+
+.cac-scroll-anchor {
+  height: 1px;
+  flex-shrink: 0;
 }
 </style>
