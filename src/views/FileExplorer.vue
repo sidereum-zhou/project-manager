@@ -109,37 +109,33 @@ async function handleOpen(node: FileNodeData): Promise<void> {
   height: 100%;
   display: flex;
   flex-direction: column;
-  gap: 16px;
-  padding: 18px;
+  gap: 12px;
+  padding: 24px;
   user-select: none;
 }
-
 .file-explorer-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
-
 .file-explorer-title {
-  font-size: 20px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
-  margin-top: 4px;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--pm-text-primary);
+  margin-top: 2px;
+  letter-spacing: -0.01em;
 }
-
 .file-explorer-hint {
   color: var(--pm-text-tertiary);
-  font-size: 12px;
+  font-size: 0.6875rem;
 }
-
 .file-tree {
   flex: 1;
   min-height: 0;
   overflow: auto;
   padding: 4px 6px 0 0;
 }
-
 .file-explorer-empty {
   flex: 1;
   min-height: 0;

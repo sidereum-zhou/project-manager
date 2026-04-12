@@ -96,55 +96,47 @@ async function clearAllProjects(): Promise<void> {
 .settings-page {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 12px;
   height: 100%;
-  padding: 18px;
+  padding: 24px;
   overflow: auto;
 }
-
 .settings-hero,
 .settings-section {
   padding: 20px;
 }
-
 .settings-hero-copy {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
-
 .settings-title {
-  font-size: 24px;
-  font-weight: 800;
-  letter-spacing: -0.04em;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: var(--pm-text-primary);
+  letter-spacing: -0.02em;
 }
-
 .settings-copy {
   color: var(--pm-text-secondary);
-  line-height: 1.7;
-  font-size: 14px;
+  line-height: 1.6;
+  font-size: 0.75rem;
 }
-
 .settings-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(280px, 0.85fr);
-  gap: 16px;
+  grid-template-columns: minmax(0, 1.15fr) minmax(260px, 0.85fr);
+  gap: 12px;
 }
-
 .settings-section {
   display: flex;
   flex-direction: column;
-  gap: 16px;
+  gap: 14px;
 }
-
 .settings-form {
-  max-width: 420px;
+  max-width: 360px;
 }
-
 .settings-danger {
-  border-color: rgba(255, 130, 153, 0.18);
+  border-color: rgba(159, 64, 61, 0.2);
 }
-
 @media (max-width: 900px) {
   .settings-grid {
     grid-template-columns: 1fr;
