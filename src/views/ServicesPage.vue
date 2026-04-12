@@ -11,6 +11,7 @@
       <div class="services-hero-actions">
         <span class="pm-pill">服务 {{ services.length }}</span>
         <span class="pm-pill">运行中 {{ runningCount }}</span>
+        <span class="pm-pill">健康 {{ healthyCount }}</span>
         <span class="pm-pill">日志 {{ totalLogEntries }}</span>
         <n-button size="small" type="primary" :disabled="services.length === 0" @click="startAllServices">启动全部</n-button>
         <n-button size="small" quaternary :disabled="runningCount === 0" @click="stopAllServices">停止全部</n-button>
@@ -53,6 +54,9 @@
                 <span class="service-card-status" :class="serviceStatus(service.id)">
                   {{ statusLabel(serviceStatus(service.id)) }}
                 </span>
+                <span class="service-card-health" :class="healthClass(service.id)">
+                  {{ healthLabel(serviceHealth(service.id).state) }}
+                </span>
                 <span v-if="service.autoStart" class="service-card-tag">Auto</span>
               </div>
             </div>
@@ -65,6 +69,10 @@
               <div class="service-card-line">
                 <span class="service-card-label">目录</span>
                 <span class="service-card-cwd">{{ service.cwd || '.' }}</span>
+              </div>
+              <div class="service-card-line">
+                <span class="service-card-label">健康检查</span>
+                <span class="service-card-cwd">{{ serviceHealth(service.id).message || '未配置健康检查' }}</span>
               </div>
             </div>
 
@@ -190,12 +198,61 @@
             />
           </n-form-item>
 
+          <div class="service-editor-grid">
+            <n-form-item label="健康检查方式">
+              <n-select v-model:value="editor.healthMode" :options="healthModeOptions" />
+            </n-form-item>
+
+            <n-form-item label="健康检查地址">
+              <n-input
+                v-model:value="editor.healthTarget"
+                placeholder="http://localhost:3000/health 或 127.0.0.1:3000"
+              />
+            </n-form-item>
+          </div>
+
+          <div class="service-editor-grid">
+            <n-form-item label="检查间隔（秒）">
+              <n-input-number v-model:value="editor.healthIntervalSec" :min="5" :max="300" />
+            </n-form-item>
+
+            <n-form-item label="超时（毫秒）">
+              <n-input-number v-model:value="editor.healthTimeoutMs" :min="500" :max="30000" :step="500" />
+            </n-form-item>
+          </div>
+
           <div class="service-editor-switch">
             <span>
               <strong>标记为自动服务</strong>
               <small>点击“启动自动服务”时会优先启动这些服务。</small>
             </span>
             <n-switch v-model:value="editor.autoStart" />
+          </div>
+
+          <div class="service-editor-switch">
+            <span>
+              <strong>启用健康检查</strong>
+              <small>支持 HTTP 或 TCP 探测，用于判断服务是否真正可用。</small>
+            </span>
+            <n-switch v-model:value="editor.healthEnabled" />
+          </div>
+
+          <div class="service-editor-switch">
+            <span>
+              <strong>失败时自动重启</strong>
+              <small>进程异常退出或健康检查连续失败时，会尝试自动拉起。</small>
+            </span>
+            <n-switch v-model:value="editor.restartEnabled" />
+          </div>
+
+          <div class="service-editor-grid">
+            <n-form-item label="最大重试次数">
+              <n-input-number v-model:value="editor.restartMaxRetries" :min="0" :max="20" />
+            </n-form-item>
+
+            <n-form-item label="重启延迟（毫秒）">
+              <n-input-number v-model:value="editor.restartDelayMs" :min="500" :max="30000" :step="500" />
+            </n-form-item>
           </div>
         </n-form>
 
@@ -215,6 +272,7 @@ import {
   NForm,
   NFormItem,
   NInput,
+  NInputNumber,
   NModal,
   NSelect,
   NSwitch,
@@ -223,7 +281,7 @@ import {
 } from 'naive-ui';
 import { electronApi } from '@/api/electron-api';
 import { useProjectStore } from '@/stores/projects';
-import type { ProcessStatus, Project, ProjectService, ServiceLogEntry } from '@/types/project';
+import type { ProcessStatus, Project, ProjectService, ServiceHealthStatus, ServiceLogEntry } from '@/types/project';
 
 interface DecoratedLogEntry extends ServiceLogEntry {
   serviceId: string;
@@ -238,6 +296,7 @@ const dialog = useDialog();
 const projectStore = useProjectStore();
 
 const serviceStatuses = ref<Record<string, ProcessStatus>>({});
+const serviceHealthStatuses = ref<Record<string, ServiceHealthStatus>>({});
 const serviceLogs = ref<Record<string, ServiceLogEntry[]>>({});
 const selectedLogServiceId = ref<string>('all');
 const searchQuery = ref('');
@@ -253,14 +312,24 @@ const editor = reactive({
   commandText: '',
   envText: '',
   autoStart: false,
+  healthEnabled: false,
+  healthMode: 'http' as 'http' | 'tcp',
+  healthTarget: '',
+  healthIntervalSec: 15,
+  healthTimeoutMs: 3000,
+  restartEnabled: false,
+  restartMaxRetries: 2,
+  restartDelayMs: 1500,
 });
 
 let offLog: (() => void) | null = null;
 let offStatus: (() => void) | null = null;
+let offHealth: (() => void) | null = null;
 
 const services = computed(() => props.project.services || []);
 const autoStartServices = computed(() => services.value.filter(service => service.autoStart));
 const runningCount = computed(() => Object.values(serviceStatuses.value).filter(status => status === 'running' || status === 'starting').length);
+const healthyCount = computed(() => services.value.filter(service => serviceHealth(service.id).state === 'healthy').length);
 const totalLogEntries = computed(() => Object.values(serviceLogs.value).reduce((total, entries) => total + entries.length, 0));
 const currentLogLabel = computed(() => {
   return selectedLogServiceId.value === 'all'
@@ -272,6 +341,10 @@ const streamOptions = [
   { label: 'stdout', value: 'stdout' },
   { label: 'stderr', value: 'stderr' },
   { label: 'system', value: 'system' },
+];
+const healthModeOptions = [
+  { label: 'HTTP', value: 'http' },
+  { label: 'TCP', value: 'tcp' },
 ];
 
 const filteredLogs = computed<DecoratedLogEntry[]>(() => {
@@ -307,10 +380,12 @@ onMounted(async () => {
 onBeforeUnmount(() => {
   offLog?.();
   offStatus?.();
+  offHealth?.();
 });
 
 watch(() => props.project.id, async () => {
   serviceStatuses.value = {};
+  serviceHealthStatuses.value = {};
   serviceLogs.value = {};
   selectedLogServiceId.value = 'all';
   await hydrateRuntimeState();
@@ -334,6 +409,7 @@ watch(filteredLogs, async () => {
 function attachServiceListeners(): void {
   offLog?.();
   offStatus?.();
+  offHealth?.();
 
   offLog = electronApi.onServiceLog((payload) => {
     if (payload.projectId !== props.project.id) return;
@@ -352,22 +428,34 @@ function attachServiceListeners(): void {
       [payload.serviceId]: payload.status,
     };
   });
+
+  offHealth = electronApi.onServiceHealth((payload) => {
+    if (payload.projectId !== props.project.id) return;
+
+    serviceHealthStatuses.value = {
+      ...serviceHealthStatuses.value,
+      [payload.serviceId]: payload.health,
+    };
+  });
 }
 
 async function hydrateRuntimeState(): Promise<void> {
   const serviceIds = services.value.map(service => service.id);
   if (serviceIds.length === 0) {
     serviceStatuses.value = {};
+    serviceHealthStatuses.value = {};
     serviceLogs.value = {};
     return;
   }
 
-  const [statuses, logs] = await Promise.all([
+  const [statuses, healthStatuses, logs] = await Promise.all([
     electronApi.listServiceStatuses(props.project.id, serviceIds),
+    electronApi.listServiceHealthStatuses(props.project.id, serviceIds),
     Promise.all(serviceIds.map(async (serviceId) => [serviceId, await electronApi.getServiceLogs(props.project.id, serviceId)] as const)),
   ]);
 
   serviceStatuses.value = statuses;
+  serviceHealthStatuses.value = healthStatuses;
   serviceLogs.value = Object.fromEntries(logs);
 }
 
@@ -377,6 +465,15 @@ function serviceStatus(serviceId: string): ProcessStatus {
 
 function serviceName(serviceId: string): string {
   return services.value.find(service => service.id === serviceId)?.name || serviceId;
+}
+
+function serviceHealth(serviceId: string): ServiceHealthStatus {
+  return serviceHealthStatuses.value[serviceId] || {
+    state: services.value.find(service => service.id === serviceId)?.healthCheck?.enabled ? 'unknown' : 'disabled',
+    message: services.value.find(service => service.id === serviceId)?.healthCheck?.enabled ? '等待服务运行' : '未配置健康检查',
+    checkedAt: null,
+    failureCount: 0,
+  };
 }
 
 function statusLabel(status: ProcessStatus): string {
@@ -390,6 +487,25 @@ function statusLabel(status: ProcessStatus): string {
     default:
       return '已停止';
   }
+}
+
+function healthLabel(state: ServiceHealthStatus['state']): string {
+  switch (state) {
+    case 'healthy':
+      return '健康';
+    case 'checking':
+      return '检查中';
+    case 'unhealthy':
+      return '异常';
+    case 'unknown':
+      return '未知';
+    default:
+      return '未配置';
+  }
+}
+
+function healthClass(serviceId: string): string {
+  return `health-${serviceHealth(serviceId).state}`;
 }
 
 async function startService(service: ProjectService): Promise<void> {
@@ -432,6 +548,14 @@ function openCreateModal(): void {
   editor.commandText = '';
   editor.envText = '';
   editor.autoStart = false;
+  editor.healthEnabled = false;
+  editor.healthMode = 'http';
+  editor.healthTarget = '';
+  editor.healthIntervalSec = 15;
+  editor.healthTimeoutMs = 3000;
+  editor.restartEnabled = false;
+  editor.restartMaxRetries = 2;
+  editor.restartDelayMs = 1500;
   editorVisible.value = true;
 }
 
@@ -442,6 +566,14 @@ function startEditModal(service: ProjectService): void {
   editor.commandText = formatCommand(service.command);
   editor.envText = formatEnv(service.env || null);
   editor.autoStart = service.autoStart;
+  editor.healthEnabled = Boolean(service.healthCheck?.enabled);
+  editor.healthMode = service.healthCheck?.mode || 'http';
+  editor.healthTarget = service.healthCheck?.target || '';
+  editor.healthIntervalSec = service.healthCheck?.intervalSec || 15;
+  editor.healthTimeoutMs = service.healthCheck?.timeoutMs || 3000;
+  editor.restartEnabled = Boolean(service.restartPolicy?.enabled);
+  editor.restartMaxRetries = service.restartPolicy?.maxRetries ?? 2;
+  editor.restartDelayMs = service.restartPolicy?.delayMs ?? 1500;
   editorVisible.value = true;
 }
 
@@ -455,6 +587,10 @@ async function saveService(): Promise<void> {
     message.warning('请先输入有效的启动命令');
     return;
   }
+  if (editor.healthEnabled && !editor.healthTarget.trim()) {
+    message.warning('启用健康检查时请填写检查地址');
+    return;
+  }
 
   const nextService: ProjectService = {
     id: editingServiceId.value || createServiceId(),
@@ -463,6 +599,18 @@ async function saveService(): Promise<void> {
     command,
     autoStart: editor.autoStart,
     env: parseEnv(editor.envText),
+    healthCheck: editor.healthTarget.trim() || editor.healthEnabled ? {
+      enabled: editor.healthEnabled,
+      mode: editor.healthMode,
+      target: editor.healthTarget.trim(),
+      intervalSec: Math.max(5, Math.round(editor.healthIntervalSec || 15)),
+      timeoutMs: Math.max(500, Math.round(editor.healthTimeoutMs || 3000)),
+    } : null,
+    restartPolicy: editor.restartEnabled ? {
+      enabled: true,
+      maxRetries: Math.max(0, Math.round(editor.restartMaxRetries || 0)),
+      delayMs: Math.max(500, Math.round(editor.restartDelayMs || 1500)),
+    } : null,
   };
 
   const nextServices = editingServiceId.value
@@ -494,6 +642,8 @@ function removeService(service: ProjectService): void {
       serviceLogs.value = restLogs;
       const { [service.id]: __, ...restStatuses } = serviceStatuses.value;
       serviceStatuses.value = restStatuses;
+      const { [service.id]: ___, ...restHealth } = serviceHealthStatuses.value;
+      serviceHealthStatuses.value = restHealth;
       if (selectedLogServiceId.value === service.id) {
         selectedLogServiceId.value = 'all';
       }
@@ -598,12 +748,17 @@ function createServiceId(): string {
 .service-card.selected { border-left-color: var(--pm-primary); background: rgba(0, 83, 219, 0.04); }
 .service-card-title-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .service-card-title { font-size: 0.8125rem; font-weight: 700; color: var(--pm-text-primary); }
-.service-card-status, .service-card-tag { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--pm-radius-xs); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.service-card-status, .service-card-tag, .service-card-health { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--pm-radius-xs); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
 .service-card-status.starting { background: var(--pm-warning-bg); color: var(--pm-warning); }
 .service-card-status.running { background: var(--pm-success-bg); color: var(--pm-success); }
 .service-card-status.error { background: rgba(159, 64, 61, 0.1); color: var(--pm-error); }
 .service-card-status.stopped { background: var(--pm-surface-container-high); color: var(--pm-text-secondary); }
 .service-card-tag { background: rgba(0, 83, 219, 0.08); color: var(--pm-primary); }
+.service-card-health.health-healthy { background: var(--pm-success-bg); color: var(--pm-success); }
+.service-card-health.health-checking { background: rgba(0, 83, 219, 0.08); color: var(--pm-primary); }
+.service-card-health.health-unhealthy { background: rgba(159, 64, 61, 0.1); color: var(--pm-error); }
+.service-card-health.health-unknown { background: var(--pm-surface-container-high); color: var(--pm-text-secondary); }
+.service-card-health.health-disabled { background: var(--pm-surface-container-highest); color: var(--pm-text-tertiary); }
 .service-card-body { display: flex; flex-direction: column; gap: 6px; }
 .service-card-line { display: flex; flex-direction: column; gap: 2px; }
 .service-card-label { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--pm-text-tertiary); }
@@ -630,6 +785,7 @@ function createServiceId(): string {
 .service-log-stream-tag { font-weight: 700; }
 .service-log-text { color: #e2e8f0; font-family: var(--pm-font-code); font-size: 0.6875rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
 .service-editor { display: flex; flex-direction: column; gap: 12px; }
+.service-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .service-editor-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-radius: var(--pm-radius-sm); background: var(--pm-surface-container-low); border: none; }
 .service-editor-switch span { display: flex; flex-direction: column; gap: 2px; }
 .service-editor-switch strong { font-size: 0.8125rem; color: var(--pm-text-primary); }
@@ -640,5 +796,6 @@ function createServiceId(): string {
   .services-hero { flex-direction: column; }
   .services-hero-actions { justify-content: flex-start; }
   .service-log-line { grid-template-columns: 1fr; }
+  .service-editor-grid { grid-template-columns: 1fr; }
 }
 </style>

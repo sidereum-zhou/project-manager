@@ -128,4 +128,42 @@ describe('Store', () => {
     expect(reloaded.projects[0].services).toHaveLength(1);
     expect(reloaded.projects[0].services?.[0].command).toEqual(['npm', 'run', 'dev']);
   });
+
+  it('should backfill service health and workflow scene defaults', () => {
+    const rawPath = store.getFilePath();
+    fs.writeFileSync(rawPath, JSON.stringify({
+      projects: [{
+        id: 'legacy-project',
+        name: 'legacy',
+        path: '/legacy',
+        type: 'nodejs',
+        addedAt: '2026-04-11T00:00:00Z',
+        services: [{
+          id: 'web',
+          name: 'Web',
+          command: ['npm', 'run', 'dev'],
+          cwd: '.',
+          autoStart: true,
+        }],
+      }],
+      workspaceScenes: [{
+        id: 'scene-1',
+        projectId: 'legacy-project',
+        name: '联调',
+        targetTab: 'terminal',
+        terminalCommands: ['npm run dev'],
+        autoRun: true,
+        createdAt: '2026-04-11T00:00:00Z',
+        updatedAt: '2026-04-11T00:00:00Z',
+      }],
+      settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
+    }), 'utf-8');
+
+    const reloaded = new Store(rawPath).load();
+    expect(reloaded.projects[0].services?.[0].healthCheck).toBeNull();
+    expect(reloaded.projects[0].services?.[0].restartPolicy).toBeNull();
+    expect(reloaded.workspaceScenes[0].serviceIds).toEqual([]);
+    expect(reloaded.workspaceScenes[0].stopOtherServices).toBe(false);
+    expect(reloaded.workspaceScenes[0].commandDelayMs).toBe(300);
+  });
 });

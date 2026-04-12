@@ -11,6 +11,18 @@ export interface StoreProjectService {
   cwd: string;
   autoStart: boolean;
   env?: ServiceEnvMap | null;
+  healthCheck?: {
+    enabled: boolean;
+    mode: 'http' | 'tcp';
+    target: string;
+    intervalSec: number;
+    timeoutMs: number;
+  } | null;
+  restartPolicy?: {
+    enabled: boolean;
+    maxRetries: number;
+    delayMs: number;
+  } | null;
 }
 
 export interface StoreProject {
@@ -38,6 +50,9 @@ export interface StoreWorkspaceScene {
   description?: string;
   targetTab: 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'settings';
   terminalCommands: string[];
+  serviceIds?: string[];
+  stopOtherServices?: boolean;
+  commandDelayMs?: number | null;
   preferredBranch?: string | null;
   autoRun: boolean;
   lastUsedAt?: string | null;
@@ -113,6 +128,9 @@ export class Store {
       workspaceScenes: Array.isArray(data.workspaceScenes)
         ? data.workspaceScenes.map(scene => ({
             ...scene,
+            serviceIds: Array.isArray(scene.serviceIds) ? scene.serviceIds : [],
+            stopOtherServices: Boolean(scene.stopOtherServices),
+            commandDelayMs: normalizeCommandDelay(scene.commandDelayMs),
             lastUsedAt: scene.lastUsedAt ?? null,
             useCount: scene.useCount ?? 0,
           }))
@@ -134,6 +152,8 @@ function normalizeProjectServices(project: Partial<StoreProject>): StoreProjectS
       cwd: service.cwd || '.',
       autoStart: Boolean(service.autoStart),
       env: service.env ?? null,
+      healthCheck: normalizeHealthCheck(service.healthCheck),
+      restartPolicy: normalizeRestartPolicy(service.restartPolicy),
     }));
   }
 
@@ -150,6 +170,8 @@ export function createDefaultServices(type: string, startCmd?: string[] | null):
     cwd: '.',
     autoStart: false,
     env: null,
+    healthCheck: null,
+    restartPolicy: null,
   }];
 }
 
@@ -164,4 +186,41 @@ function defaultServiceName(type: string): string {
     default:
       return 'App Service';
   }
+}
+
+function normalizeHealthCheck(value: StoreProjectService['healthCheck'] | undefined): StoreProjectService['healthCheck'] {
+  if (!value || typeof value !== 'object') return null;
+
+  return {
+    enabled: Boolean(value.enabled),
+    mode: value.mode === 'tcp' ? 'tcp' : 'http',
+    target: typeof value.target === 'string' ? value.target.trim() : '',
+    intervalSec: normalizePositiveInt(value.intervalSec, 15),
+    timeoutMs: normalizePositiveInt(value.timeoutMs, 3000),
+  };
+}
+
+function normalizeRestartPolicy(value: StoreProjectService['restartPolicy'] | undefined): StoreProjectService['restartPolicy'] {
+  if (!value || typeof value !== 'object') return null;
+
+  return {
+    enabled: Boolean(value.enabled),
+    maxRetries: normalizeNonNegativeInt(value.maxRetries, 2),
+    delayMs: normalizePositiveInt(value.delayMs, 1500),
+  };
+}
+
+function normalizeCommandDelay(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 300;
+  return Math.max(0, Math.round(value));
+}
+
+function normalizePositiveInt(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return fallback;
+  return Math.round(value);
+}
+
+function normalizeNonNegativeInt(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return fallback;
+  return Math.round(value);
 }

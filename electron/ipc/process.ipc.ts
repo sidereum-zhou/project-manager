@@ -1,7 +1,12 @@
 import path from 'path';
 import { BrowserWindow, ipcMain } from 'electron';
 import { ProcessManager } from '../core/process-manager';
-import type { ProcessStatus } from '../core/process-manager';
+import type {
+  ProcessHealthCheckConfig,
+  ProcessHealthStatus,
+  ProcessRestartPolicy,
+  ProcessStatus,
+} from '../core/process-manager';
 
 interface ProjectServicePayload {
   id: string;
@@ -10,6 +15,8 @@ interface ProjectServicePayload {
   cwd: string;
   autoStart: boolean;
   env?: Record<string, string> | null;
+  healthCheck?: ProcessHealthCheckConfig | null;
+  restartPolicy?: ProcessRestartPolicy | null;
 }
 
 export function registerProcessIpc(processManager: ProcessManager): void {
@@ -33,6 +40,18 @@ export function registerProcessIpc(processManager: ProcessManager): void {
         projectId: parsed.projectId,
         serviceId: parsed.serviceId,
         status: payload.status,
+      });
+    }
+  });
+
+  processManager.on('health', (payload: { serviceKey: string; health: ProcessHealthStatus }) => {
+    const parsed = parseServiceKey(payload.serviceKey);
+    if (!parsed) return;
+    for (const win of BrowserWindow.getAllWindows()) {
+      win.webContents.send('service:health', {
+        projectId: parsed.projectId,
+        serviceId: parsed.serviceId,
+        health: payload.health,
       });
     }
   });
@@ -62,6 +81,10 @@ export function registerProcessIpc(processManager: ProcessManager): void {
       resolveServiceCwd(projectPath, service.cwd),
       service.command,
       service.env || undefined,
+      {
+        healthCheck: service.healthCheck || null,
+        restartPolicy: service.restartPolicy || null,
+      },
     );
     return true;
   });
@@ -77,6 +100,10 @@ export function registerProcessIpc(processManager: ProcessManager): void {
       resolveServiceCwd(projectPath, service.cwd),
       service.command,
       service.env || undefined,
+      {
+        healthCheck: service.healthCheck || null,
+        restartPolicy: service.restartPolicy || null,
+      },
     );
     return true;
   });
@@ -91,6 +118,14 @@ export function registerProcessIpc(processManager: ProcessManager): void {
 
   ipcMain.handle('service:logs', async (_event, projectId: string, serviceId: string) => {
     return processManager.getLogs(makeServiceKey(projectId, serviceId));
+  });
+
+  ipcMain.handle('service:healthStatuses', async (_event, projectId: string, serviceIds: string[]) => {
+    const keys = serviceIds.map((serviceId) => makeServiceKey(projectId, serviceId));
+    const healthStatuses = processManager.getHealthStatuses(keys);
+    return Object.fromEntries(
+      serviceIds.map((serviceId) => [serviceId, healthStatuses[makeServiceKey(projectId, serviceId)]]),
+    );
   });
 
   ipcMain.handle('service:clearLogs', async (_event, projectId: string, serviceId?: string | null) => {

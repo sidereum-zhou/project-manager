@@ -166,10 +166,10 @@
             <div class="usage-row">
               <div class="usage-row-header">
                 <span class="usage-row-label">磁盘</span>
-                <span class="usage-row-value">{{ diskUsagePercent }}%</span>
+              <span class="usage-row-value">{{ sysInfo.diskUsagePercent }}%</span>
               </div>
-              <div class="usage-row-bar"><div class="usage-row-bar-fill" :class="{ 'usage-row-bar-fill--warn': diskUsagePercent > 90 }" :style="{ width: diskUsagePercent + '%' }"></div></div>
-              <span class="usage-row-detail">{{ diskFree }} GB 可用</span>
+              <div class="usage-row-bar"><div class="usage-row-bar-fill" :class="{ 'usage-row-bar-fill--warn': sysInfo.diskUsagePercent > 90 }" :style="{ width: sysInfo.diskUsagePercent + '%' }"></div></div>
+              <span class="usage-row-detail">{{ sysInfo.freeDiskGB }} GB 可用 · {{ sysInfo.diskLabel }}</span>
             </div>
             <div class="usage-row">
               <div class="usage-row-header">
@@ -265,16 +265,17 @@ const defaultSysInfo = {
   freeMemoryGB: 0,
   usedMemoryGB: 0,
   memoryUsagePercent: 0,
+  totalDiskGB: 0,
+  freeDiskGB: 0,
+  usedDiskGB: 0,
+  diskUsagePercent: 0,
+  diskLabel: '—',
   uptimeSeconds: 0,
 };
 
 const sysInfo = ref({ ...defaultSysInfo });
 const lastRefresh = ref<Date | null>(null);
 let refreshTimer: ReturnType<typeof setInterval> | null = null;
-
-// Disk info (simplified - shows a placeholder since we don't have real disk API)
-const diskUsagePercent = ref(0);
-const diskFree = ref('—');
 
 const lastRefreshLabel = computed(() => {
   if (!lastRefresh.value) return '—';
@@ -297,8 +298,6 @@ async function refreshSystemInfo(): Promise<void> {
     const info = await electronApi.getSystemInfo();
     sysInfo.value = info;
     lastRefresh.value = new Date();
-    // Approximate disk usage from memory as a fallback visual
-    // In a real app you'd use a proper disk API
   } catch { /* ignore */ }
 }
 

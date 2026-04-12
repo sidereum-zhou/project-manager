@@ -295,7 +295,7 @@ const projectStore = useProjectStore();
 const activeTab = ref<ProjectTab>(props.project.lastOpenedTab || 'overview');
 const sidebarOpen = ref(false);
 const terminalId = ref<string | null>(null);
-const pendingTerminalCommands = ref<string[] | null>(null);
+const pendingTerminalRun = ref<{ commands: string[]; delayMs: number } | null>(null);
 
 // Git data
 const gitBranch = ref('');
@@ -333,7 +333,7 @@ onMounted(() => {
 watch(() => props.project.id, () => {
   activeTab.value = props.project.lastOpenedTab || 'overview';
   terminalId.value = null;
-  pendingTerminalCommands.value = null;
+  pendingTerminalRun.value = null;
   gitBranch.value = '';
   gitStatusData.value = null;
   recentCommits.value = [];
@@ -482,6 +482,8 @@ async function applyScene(scene: WorkspaceScene): Promise<void> {
     }
   }
 
+  await applySceneServices(scene);
+
   const nextTab: ProjectTab = scene.autoRun && scene.terminalCommands.length > 0
     ? 'terminal'
     : scene.targetTab;
@@ -496,7 +498,10 @@ async function applyScene(scene: WorkspaceScene): Promise<void> {
   });
 
   if (scene.autoRun && scene.terminalCommands.length > 0) {
-    pendingTerminalCommands.value = [...scene.terminalCommands];
+    pendingTerminalRun.value = {
+      commands: [...scene.terminalCommands],
+      delayMs: scene.commandDelayMs ?? 300,
+    };
     flushPendingCommands();
   }
 }
@@ -504,22 +509,21 @@ async function applyScene(scene: WorkspaceScene): Promise<void> {
 function runCommands(command: string): void {
   activeTab.value = 'terminal';
   if (terminalId.value) {
-    sendToTerminal(command);
+    queueCommandRun([command], 0);
   } else {
-    pendingTerminalCommands.value = [command];
+    pendingTerminalRun.value = {
+      commands: [command],
+      delayMs: 0,
+    };
   }
 }
 
 function flushPendingCommands(): void {
-  if (!terminalId.value || !pendingTerminalCommands.value || pendingTerminalCommands.value.length === 0) return;
+  if (!terminalId.value || !pendingTerminalRun.value || pendingTerminalRun.value.commands.length === 0) return;
 
-  const commands = [...pendingTerminalCommands.value];
-  pendingTerminalCommands.value = null;
-  window.setTimeout(() => {
-    for (const command of commands) {
-      sendToTerminal(command);
-    }
-  }, 120);
+  const { commands, delayMs } = pendingTerminalRun.value;
+  pendingTerminalRun.value = null;
+  queueCommandRun(commands, delayMs);
 }
 
 function formatCommand(command: string[] | null | undefined): string {
@@ -535,6 +539,45 @@ function formatDate(value: string): string {
     });
   } catch {
     return value;
+  }
+}
+
+function queueCommandRun(commands: string[], delayMs: number): void {
+  const firstDelay = delayMs > 0 ? delayMs : 120;
+  const stepDelay = delayMs > 0 ? delayMs : 120;
+  commands.forEach((command, index) => {
+    window.setTimeout(() => {
+      sendToTerminal(command);
+    }, firstDelay + index * stepDelay);
+  });
+}
+
+async function applySceneServices(scene: WorkspaceScene): Promise<void> {
+  const configuredServices = services.value;
+  if (configuredServices.length === 0) return;
+
+  const selectedIds = new Set(scene.serviceIds || []);
+  if (selectedIds.size === 0 && !scene.stopOtherServices) return;
+
+  const statuses = await electronApi.listServiceStatuses(
+    props.project.id,
+    configuredServices.map(service => service.id),
+  );
+
+  if (scene.stopOtherServices) {
+    for (const service of configuredServices) {
+      const status = statuses[service.id];
+      if (!selectedIds.has(service.id) && (status === 'running' || status === 'starting')) {
+        await electronApi.stopService(props.project.id, service.id);
+      }
+    }
+  }
+
+  for (const service of configuredServices) {
+    if (!selectedIds.has(service.id)) continue;
+    const status = statuses[service.id];
+    if (status === 'running' || status === 'starting') continue;
+    await electronApi.startService(props.project.id, props.project.path, service);
   }
 }
 </script>

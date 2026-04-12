@@ -1,3 +1,5 @@
+import fs from 'fs';
+import path from 'path';
 import { ipcMain, dialog, shell } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import { Store, createDefaultServices } from '../core/store';
@@ -64,8 +66,6 @@ export function registerProjectIpc(store: Store): void {
   });
 
   ipcMain.handle('project:listFiles', async (_event, dirPath: string) => {
-    const fs = require('fs');
-    const path = require('path');
     try {
       const entries = fs.readdirSync(dirPath, { withFileTypes: true });
       return entries
@@ -90,11 +90,22 @@ export function registerProjectIpc(store: Store): void {
 
   ipcMain.handle('project:readTextFile', async (_event, filePath: string, maxLength: number = 12000) => {
     try {
-      const content = require('fs').readFileSync(filePath, 'utf-8') as string;
+      const content = fs.readFileSync(filePath, 'utf-8') as string;
       if (content.includes('\u0000')) return null;
       return content.slice(0, maxLength);
     } catch {
       return null;
+    }
+  });
+
+  ipcMain.handle('project:searchFiles', async (_event, projectPath: string, query: string) => {
+    const normalizedQuery = query.trim().toLowerCase();
+    if (!normalizedQuery) return [];
+
+    try {
+      return searchProjectFiles(projectPath, normalizedQuery, 60);
+    } catch {
+      return [];
     }
   });
 
@@ -108,4 +119,113 @@ export function registerProjectIpc(store: Store): void {
     store.save(data);
     return data.settings;
   });
+}
+
+const SEARCH_IGNORE_DIRS = new Set([
+  'node_modules',
+  '.git',
+  'dist',
+  'build',
+  '.next',
+  '.svn',
+  '__pycache__',
+  '.cache',
+  'coverage',
+  'out',
+]);
+
+function searchProjectFiles(projectPath: string, query: string, maxResults: number): Array<{
+  path: string;
+  matchedOn: 'name' | 'content';
+  snippet?: string | null;
+}> {
+  const stack = [''];
+  const results: Array<{ path: string; matchedOn: 'name' | 'content'; snippet?: string | null }> = [];
+
+  while (stack.length > 0 && results.length < maxResults) {
+    const relativeDir = stack.pop()!;
+    const dirPath = relativeDir ? path.join(projectPath, relativeDir) : projectPath;
+
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dirPath, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    entries.sort((a, b) => a.name.localeCompare(b.name));
+
+    for (const entry of entries) {
+      if (results.length >= maxResults) break;
+      if (entry.name.startsWith('.')) continue;
+
+      const relativePath = relativeDir
+        ? path.join(relativeDir, entry.name)
+        : entry.name;
+      const normalizedRelativePath = relativePath.replace(/\\/g, '/');
+
+      if (entry.isDirectory()) {
+        if (!SEARCH_IGNORE_DIRS.has(entry.name)) {
+          stack.push(relativePath);
+        }
+        continue;
+      }
+
+      if (!entry.isFile()) continue;
+
+      if (normalizedRelativePath.toLowerCase().includes(query)) {
+        results.push({
+          path: normalizedRelativePath,
+          matchedOn: 'name',
+          snippet: null,
+        });
+        continue;
+      }
+
+      const fullPath = path.join(projectPath, relativePath);
+      if (!canSearchFile(fullPath)) continue;
+
+      const content = safeReadText(fullPath);
+      if (!content) continue;
+
+      const lower = content.toLowerCase();
+      const matchIndex = lower.indexOf(query);
+      if (matchIndex === -1) continue;
+
+      results.push({
+        path: normalizedRelativePath,
+        matchedOn: 'content',
+        snippet: makeSnippet(content, matchIndex, query.length),
+      });
+    }
+  }
+
+  return results;
+}
+
+function canSearchFile(filePath: string): boolean {
+  try {
+    const stat = fs.statSync(filePath);
+    return stat.isFile() && stat.size <= 256 * 1024;
+  } catch {
+    return false;
+  }
+}
+
+function safeReadText(filePath: string): string | null {
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8');
+    return content.includes('\u0000') ? null : content;
+  } catch {
+    return null;
+  }
+}
+
+function makeSnippet(content: string, matchIndex: number, queryLength: number): string {
+  const start = Math.max(0, matchIndex - 48);
+  const end = Math.min(content.length, matchIndex + queryLength + 72);
+  return content
+    .slice(start, end)
+    .replace(/\s+/g, ' ')
+    .trim();
 }

@@ -2,7 +2,10 @@
   <div class="file-node">
     <div
       class="file-node-row"
-      :class="{ expanded: node.isDirectory && expanded }"
+      :class="{
+        expanded: node.isDirectory && expanded,
+        'is-selected': selectedPath === node.path,
+      }"
       :style="{ paddingLeft: `${depth * 16 + 10}px`, '--kind-color': kindMeta.color }"
       @click="handleClick"
       @dblclick="handleDblClick"
@@ -25,8 +28,9 @@
         :key="child.path"
         :node="child"
         :depth="depth + 1"
-        :project-path="projectPath"
+        :selected-path="selectedPath"
         :on-toggle="onToggle"
+        :on-select="onSelect"
         :on-open="onOpen"
       />
     </div>
@@ -34,7 +38,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed } from 'vue';
+import { computed, ref } from 'vue';
 
 interface FileNodeData {
   name: string;
@@ -49,23 +53,23 @@ interface FileNodeData {
 const props = defineProps<{
   node: FileNodeData;
   depth: number;
-  projectPath: string;
+  selectedPath?: string | null;
   onToggle: (node: FileNodeData) => void | Promise<void>;
+  onSelect: (node: FileNodeData) => void | Promise<void>;
   onOpen: (node: FileNodeData) => void | Promise<void>;
 }>();
 
 const expanded = ref(false);
 
 async function handleClick(): Promise<void> {
-  if (!props.node.isDirectory) {
-    await props.onOpen(props.node);
-    return;
+  if (props.node.isDirectory) {
+    if (!expanded.value) {
+      await props.onToggle(props.node);
+    }
+    expanded.value = !expanded.value;
   }
 
-  if (!expanded.value) {
-    await props.onToggle(props.node);
-  }
-  expanded.value = !expanded.value;
+  await props.onSelect(props.node);
 }
 
 async function handleDblClick(): Promise<void> {
@@ -74,6 +78,7 @@ async function handleDblClick(): Promise<void> {
       await props.onToggle(props.node);
       expanded.value = true;
     }
+    await props.onSelect(props.node);
     return;
   }
 
@@ -160,12 +165,17 @@ const kindMeta = computed(() => {
 }
 
 .file-node-row:hover {
-  background: rgba(255, 255, 255, 0.05);
+  background: rgba(0, 83, 219, 0.05);
   color: var(--pm-text-primary);
 }
 
 .file-node-row.expanded {
-  background: rgba(255, 255, 255, 0.04);
+  background: rgba(0, 0, 0, 0.03);
+}
+
+.file-node-row.is-selected {
+  background: rgba(0, 83, 219, 0.08);
+  color: var(--pm-primary);
 }
 
 .file-node-arrow {

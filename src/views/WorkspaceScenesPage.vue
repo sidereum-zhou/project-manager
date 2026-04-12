@@ -53,6 +53,30 @@
             />
           </n-form-item>
 
+          <n-form-item label="应用时启动的服务">
+            <n-select
+              v-model:value="form.serviceIds"
+              multiple
+              clearable
+              :options="serviceOptions"
+              placeholder="可选择 Web / API / Worker 等服务"
+            />
+          </n-form-item>
+
+          <div class="scenes-form-grid">
+            <n-form-item label="命令间隔（毫秒）">
+              <n-input-number v-model:value="form.commandDelayMs" :min="0" :max="30000" :step="100" />
+            </n-form-item>
+
+            <div class="scenes-switch-row">
+              <span class="scenes-switch-copy">
+                <strong>先停止未选中的服务</strong>
+                <small>应用工作流前，先关闭当前项目里不在模板中的运行服务。</small>
+              </span>
+              <n-switch v-model:value="form.stopOtherServices" />
+            </div>
+          </div>
+
           <div class="scenes-switch-row">
             <span class="scenes-switch-copy">
               <strong>应用时自动执行终端命令</strong>
@@ -99,6 +123,7 @@
               <p class="scene-card-description">{{ scene.description || '没有附加说明。' }}</p>
               <div class="scene-card-meta">
                 <span>{{ scene.terminalCommands.length }} 条命令</span>
+                <span>{{ scene.serviceIds?.length || 0 }} 个服务</span>
                 <span>{{ scene.preferredBranch || '无固定分支' }}</span>
                 <span>使用 {{ scene.useCount ?? 0 }} 次</span>
                 <span>{{ formatDate(scene.lastUsedAt || scene.updatedAt) }}</span>
@@ -117,12 +142,13 @@
 </template>
 
 <script setup lang="ts">
-import { onMounted, reactive, ref, watch } from 'vue';
+import { computed, onMounted, reactive, ref, watch } from 'vue';
 import {
   NButton,
   NForm,
   NFormItem,
   NInput,
+  NInputNumber,
   NSelect,
   NSwitch,
   useMessage,
@@ -153,6 +179,9 @@ const form = reactive({
   targetTab: props.currentTab as ProjectTab,
   preferredBranch: '',
   commandsText: '',
+  serviceIds: [] as string[],
+  stopOtherServices: false,
+  commandDelayMs: 300,
   autoRun: false,
 });
 
@@ -167,6 +196,11 @@ const tabOptions = [
   { label: '设置', value: 'settings' },
 ];
 
+const serviceOptions = computed(() => (props.project.services || []).map(service => ({
+  label: service.name,
+  value: service.id,
+})));
+
 onMounted(loadScenes);
 
 watch(() => props.project.id, async () => {
@@ -176,6 +210,9 @@ watch(() => props.project.id, async () => {
 
 function prefillWithCurrent(): void {
   form.targetTab = props.currentTab;
+  form.serviceIds = (props.project.services || [])
+    .filter(service => service.autoStart)
+    .map(service => service.id);
 }
 
 async function loadScenes(): Promise<void> {
@@ -195,6 +232,9 @@ function resetForm(): void {
   form.targetTab = props.currentTab;
   form.preferredBranch = '';
   form.commandsText = '';
+  form.serviceIds = [];
+  form.stopOtherServices = false;
+  form.commandDelayMs = 300;
   form.autoRun = false;
 }
 
@@ -205,6 +245,9 @@ function startEdit(scene: WorkspaceScene): void {
   form.targetTab = scene.targetTab;
   form.preferredBranch = scene.preferredBranch || '';
   form.commandsText = scene.terminalCommands.join('\n');
+  form.serviceIds = scene.serviceIds || [];
+  form.stopOtherServices = Boolean(scene.stopOtherServices);
+  form.commandDelayMs = scene.commandDelayMs ?? 300;
   form.autoRun = scene.autoRun;
 }
 
@@ -222,6 +265,9 @@ async function saveScene(): Promise<void> {
       .split(/\r?\n/)
       .map(line => line.trim())
       .filter(Boolean),
+    serviceIds: [...form.serviceIds],
+    stopOtherServices: form.stopOtherServices,
+    commandDelayMs: Math.max(0, Math.round(form.commandDelayMs || 0)),
     preferredBranch: form.preferredBranch.trim() || null,
     autoRun: form.autoRun,
   } satisfies Omit<WorkspaceScene, 'id' | 'projectId' | 'createdAt' | 'updatedAt' | 'lastUsedAt' | 'useCount'>;
@@ -280,6 +326,7 @@ function formatDate(value: string): string {
 .scenes-editor, .scenes-list { display: flex; flex-direction: column; gap: 14px; min-height: 0; }
 .scenes-form { display: flex; flex-direction: column; gap: 4px; }
 .scenes-form-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.scenes-form-grid :deep(.n-input-number) { width: 100%; }
 .scenes-switch-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin: 4px 0 8px; padding: 12px 16px; border-radius: var(--pm-radius-sm); background: var(--pm-surface-container-low); border: none; }
 .scenes-switch-copy { display: flex; flex-direction: column; gap: 2px; }
 .scenes-switch-copy strong { font-size: 0.8125rem; color: var(--pm-text-primary); }

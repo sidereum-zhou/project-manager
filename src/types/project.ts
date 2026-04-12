@@ -2,6 +2,21 @@ export type ProjectType = 'nodejs' | 'nodejs-frontend' | 'python' | 'java' | 'mo
 export type ProjectTab = 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'settings';
 
 export type ProcessStatus = 'starting' | 'running' | 'stopped' | 'error';
+export type ServiceHealthState = 'disabled' | 'unknown' | 'checking' | 'healthy' | 'unhealthy';
+
+export interface ServiceHealthCheck {
+  enabled: boolean;
+  mode: 'http' | 'tcp';
+  target: string;
+  intervalSec: number;
+  timeoutMs: number;
+}
+
+export interface ServiceRestartPolicy {
+  enabled: boolean;
+  maxRetries: number;
+  delayMs: number;
+}
 
 export interface ProjectService {
   id: string;
@@ -10,6 +25,8 @@ export interface ProjectService {
   cwd: string;
   autoStart: boolean;
   env?: Record<string, string> | null;
+  healthCheck?: ServiceHealthCheck | null;
+  restartPolicy?: ServiceRestartPolicy | null;
 }
 
 export interface ServiceLogEntry {
@@ -18,6 +35,13 @@ export interface ServiceLogEntry {
   timestamp: string;
   stream: 'stdout' | 'stderr' | 'system';
   message: string;
+}
+
+export interface ServiceHealthStatus {
+  state: ServiceHealthState;
+  message?: string | null;
+  checkedAt?: string | null;
+  failureCount: number;
 }
 
 export interface Project {
@@ -50,6 +74,9 @@ export interface WorkspaceScene {
   description?: string;
   targetTab: ProjectTab;
   terminalCommands: string[];
+  serviceIds?: string[];
+  stopOtherServices?: boolean;
+  commandDelayMs?: number | null;
   preferredBranch?: string | null;
   autoRun: boolean;
   lastUsedAt?: string | null;

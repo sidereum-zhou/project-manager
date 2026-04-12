@@ -3,6 +3,7 @@ import type {
   ProcessStatus,
   Project,
   ProjectService,
+  ServiceHealthStatus,
   ServiceLogEntry,
   WorkspaceScene,
 } from '@/types/project';
@@ -44,6 +45,12 @@ export interface GitBranch {
   name: string;
   isCurrent: boolean;
   isRemote: boolean;
+}
+
+export interface FileSearchResult {
+  path: string;
+  matchedOn: 'name' | 'content';
+  snippet?: string | null;
 }
 
 const api = window.electronAPI;
@@ -90,6 +97,10 @@ export const electronApi = {
 
   async readTextFile(filePath: string, maxLength?: number): Promise<string | null> {
     return api.readTextFile(filePath, maxLength);
+  },
+
+  async searchFiles(projectPath: string, query: string): Promise<FileSearchResult[]> {
+    return api.searchFiles(projectPath, query);
   },
 
   async getSettings(): Promise<{ defaultTerminalFont: string; defaultTerminalFontSize: number }> {
@@ -140,12 +151,20 @@ export const electronApi = {
     return api.clearServiceLogs(projectId, serviceId);
   },
 
+  async listServiceHealthStatuses(projectId: string, serviceIds: string[]): Promise<Record<string, ServiceHealthStatus>> {
+    return api.listServiceHealthStatuses(projectId, serviceIds);
+  },
+
   onServiceLog(callback: (payload: { projectId: string; serviceId: string; entry: ServiceLogEntry }) => void): () => void {
     return api.onServiceLog(callback);
   },
 
   onServiceStatus(callback: (payload: { projectId: string; serviceId: string; status: ProcessStatus }) => void): () => void {
     return api.onServiceStatus(callback);
+  },
+
+  onServiceHealth(callback: (payload: { projectId: string; serviceId: string; health: ServiceHealthStatus }) => void): () => void {
+    return api.onServiceHealth(callback);
   },
 
   async createTerminal(projectId: string, cwd: string): Promise<string> {
@@ -260,6 +279,11 @@ export const electronApi = {
     freeMemoryGB: number;
     usedMemoryGB: number;
     memoryUsagePercent: number;
+    totalDiskGB: number;
+    freeDiskGB: number;
+    usedDiskGB: number;
+    diskUsagePercent: number;
+    diskLabel: string;
     uptimeSeconds: number;
   }> {
     return api.getSystemInfo();

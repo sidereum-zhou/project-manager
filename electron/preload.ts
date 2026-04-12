@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listFiles: (dirPath: string) => ipcRenderer.invoke('project:listFiles', dirPath),
   openFile: (filePath: string) => ipcRenderer.invoke('project:openFile', filePath),
   readTextFile: (filePath: string, maxLength?: number) => ipcRenderer.invoke('project:readTextFile', filePath, maxLength),
+  searchFiles: (projectPath: string, query: string) => ipcRenderer.invoke('project:searchFiles', projectPath, query),
 
   // Settings
   getSettings: () => ipcRenderer.invoke('settings:get'),
@@ -37,6 +38,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.invoke('service:logs', projectId, serviceId),
   clearServiceLogs: (projectId: string, serviceId?: string | null) =>
     ipcRenderer.invoke('service:clearLogs', projectId, serviceId),
+  listServiceHealthStatuses: (projectId: string, serviceIds: string[]) =>
+    ipcRenderer.invoke('service:healthStatuses', projectId, serviceIds),
   onServiceLog: (callback: (payload: any) => void) => {
     const listener = (_event: Electron.IpcRendererEvent, payload: any) => callback(payload);
     ipcRenderer.on('service:log', listener);
@@ -46,6 +49,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const listener = (_event: Electron.IpcRendererEvent, payload: any) => callback(payload);
     ipcRenderer.on('service:status', listener);
     return () => ipcRenderer.removeListener('service:status', listener);
+  },
+  onServiceHealth: (callback: (payload: any) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: any) => callback(payload);
+    ipcRenderer.on('service:health', listener);
+    return () => ipcRenderer.removeListener('service:health', listener);
   },
 
   // Terminal
