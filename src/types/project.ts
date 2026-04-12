@@ -1,5 +1,5 @@
 export type ProjectType = 'nodejs' | 'nodejs-frontend' | 'python' | 'java' | 'monorepo' | 'unknown';
-export type ProjectTab = 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'settings';
+export type ProjectTab = 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'claude' | 'settings';
 
 export type ProcessStatus = 'starting' | 'running' | 'stopped' | 'error';
 export type ServiceHealthState = 'disabled' | 'unknown' | 'checking' | 'healthy' | 'unhealthy';

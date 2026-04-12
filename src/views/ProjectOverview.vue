@@ -197,6 +197,12 @@
         </div>
       </n-tab-pane>
 
+      <n-tab-pane name="claude" tab="Claude">
+        <div class="overview-tab">
+          <ClaudeConfigPage :project="project" />
+        </div>
+      </n-tab-pane>
+
       <n-tab-pane name="settings" tab="设置">
         <div class="overview-tab">
           <SettingsPage />
@@ -287,6 +293,7 @@ import SettingsPage from './SettingsPage.vue';
 import ServicesPage from './ServicesPage.vue';
 import WorkspaceScenesPage from './WorkspaceScenesPage.vue';
 import ArchitecturePage from './ArchitecturePage.vue';
+import ClaudeConfigPage from './ClaudeConfigPage.vue';
 
 const props = defineProps<{ project: Project }>();
 

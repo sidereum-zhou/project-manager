@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 
-type ProjectTab = 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'settings';
+type ProjectTab = 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'claude' | 'settings';
 type ServiceEnvMap = Record<string, string>;
 
 export interface StoreProjectService {
@@ -48,7 +48,7 @@ export interface StoreWorkspaceScene {
   projectId: string;
   name: string;
   description?: string;
-  targetTab: 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'settings';
+  targetTab: 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'claude' | 'settings';
   terminalCommands: string[];
   serviceIds?: string[];
   stopOtherServices?: boolean;

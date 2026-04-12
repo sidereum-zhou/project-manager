@@ -5,10 +5,16 @@
   "main": "dist-electron/main.js",
   "scripts": {
     "dev": "vite",
+    "dev:app": "npm run electron:dev",
+    "typecheck": "vue-tsc --noEmit",
     "build": "vue-tsc --noEmit && vite build && tsc -p electron/tsconfig.json",
     "preview": "vite preview",
     "test": "vitest run",
+    "test:store": "vitest run electron/core/store.test.ts",
+    "test:detectors": "vitest run electron/detectors/detectors.test.ts",
     "test:watch": "vitest",
+    "check:quick": "npm run typecheck && npm run test",
+    "check": "npm run test && npm run build",
     "electron:dev": "concurrently \"vite\" \"wait-on http://localhost:5173 && electron .\"",
     "electron:build": "npm run build && electron-builder"
   },

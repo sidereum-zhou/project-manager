@@ -193,6 +193,7 @@ const tabOptions = [
   { label: '文件', value: 'files' },
   { label: 'Git', value: 'git' },
   { label: '架构图', value: 'architecture' },
+  { label: 'Claude', value: 'claude' },
   { label: '设置', value: 'settings' },
 ];
 

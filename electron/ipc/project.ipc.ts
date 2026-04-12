@@ -98,6 +98,16 @@ export function registerProjectIpc(store: Store): void {
     }
   });
 
+  ipcMain.handle('project:writeTextFile', async (_event, filePath: string, content: string) => {
+    try {
+      fs.mkdirSync(path.dirname(filePath), { recursive: true });
+      fs.writeFileSync(filePath, content, 'utf-8');
+      return true;
+    } catch {
+      return false;
+    }
+  });
+
   ipcMain.handle('project:searchFiles', async (_event, projectPath: string, query: string) => {
     const normalizedQuery = query.trim().toLowerCase();
     if (!normalizedQuery) return [];

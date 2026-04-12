@@ -1,73 +1,146 @@
 # CLAUDE.md
 
-This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
+This repository is set up for Claude Code driven vibe coding. Treat this file as the default operating guide for the project.
 
-## Project Overview
+## Goal
 
-FLUX Project Manager is a desktop Electron app for managing local Node.js, Python, Java, and monorepo projects. It provides file browsing, an integrated terminal, Git operations, process/service orchestration, workspace scenes, and architecture visualization. UI is in Chinese (简体中文).
+FLUX Project Manager is an Electron desktop app for managing local development projects. It supports:
 
-## Commands
+- project detection and import
+- integrated terminal
+- Git operations
+- service orchestration and logs
+- workspace scenes
+- architecture visualization
+- local settings and dashboards
+
+UI copy is Chinese (简体中文). Keep new user-facing text consistent with the existing tone.
+
+## Preferred Workflow
+
+For most feature work, use this loop:
+
+1. Inspect the relevant files first.
+2. Make the smallest coherent change that solves the request.
+3. Update shared types and IPC contracts when behavior changes.
+4. Add or update tests if the change touches store logic, detectors, process logic, or parsing.
+5. Run targeted verification first, then broader verification if the change is substantial.
+6. Summarize changed files, verification, and remaining risks.
+
+If the task is small, do the work directly. If the task is broad, split it into 2-4 concrete steps before editing.
+
+## Fast Commands
+
+Use these commands by default:
 
 ```bash
-npm run dev          # Vite dev server only (port 5173)
-npm run build        # Type-check + Vite build + Electron TS compile
-npm run test         # Run all tests once (vitest)
-npm run test:watch   # Vitest in watch mode
+npm run dev              # renderer dev server
+npm run dev:app          # full Electron app for manual testing
+npm run typecheck        # Vue + TS type-check only
+npm run test             # all tests
+npm run test:store       # store regression tests only
+npm run test:detectors   # detector tests only
+npm run build            # production build
+npm run check:quick      # typecheck + test
+npm run check            # test + build
 ```
 
-No single-test command is configured. To run a specific test file, use:
-```bash
-npx vitest run electron/core/store.test.ts
-npx vitest run electron/detectors/detectors.test.ts
-```
+## Editing Rules
 
-## Architecture
+- Do not edit `dist/`, `dist-electron/`, or `node_modules/`.
+- Preserve unrelated user changes.
+- Prefer updating the real source instead of adding workaround code.
+- Keep changes local and cohesive; avoid speculative refactors.
+- When IPC changes, update all three layers together:
+  - `electron/ipc/*`
+  - `electron/preload.ts`
+  - `src/api/electron-api.ts`
 
-### Electron (main process) — `electron/`
+## Repo Map
 
-Entry: `electron/main.ts` creates the BrowserWindow, initializes the `Store` and `ProcessManager` singletons, and registers all IPC handlers.
+### Electron main process
 
-**IPC modules** (`electron/ipc/`) — each exports a single `register*Ipc()` function called from main.ts:
-- `project.ipc.ts` — directory selection, project CRUD, file listing/reading, settings
-- `process.ipc.ts` — process start/stop/restart/status, service orchestration (service keys are `projectId::serviceId`), forwards ProcessManager events to renderer
-- `terminal.ipc.ts` — PTY-based terminal creation (powershell on Windows, bash elsewhere), data/exit events via `node-pty`
-- `git.ipc.ts` — full git operations via `simple-git` (status, log, diff, add, commit, stash, pull, push, branches, checkout)
-- `workspace.ipc.ts` — workspace scene CRUD, architecture analysis dispatch
+- `electron/main.ts`: app bootstrap, window creation, IPC registration
+- `electron/core/store.ts`: JSON persistence and migration defaults
+- `electron/core/process-manager.ts`: service lifecycle, logs, health checks
+- `electron/core/architecture-analyzer.ts`: static project graph analysis
 
-**Core modules** (`electron/core/`):
-- `store.ts` — JSON file-backed persistence (atomic writes via tmp+rename), normalizes/migrates legacy data shapes. Stores projects, scenes, and settings.
-- `process-manager.ts` — EventEmitter-based child process lifecycle management with in-memory log buffer (max 1500 entries). Used by both direct process control and service orchestration.
-- `architecture-analyzer.ts` — static analysis of Node (workspaces, deps, internal deps), Python (requirements.txt/pyproject.toml), and Java (pom.xml/Gradle) projects into a node/edge graph for visualization.
+### IPC layer
 
-**Project detectors** (`electron/detectors/`):
-- `registry.ts` runs detectors in priority order: monorepo > nodejs > python > java
-- Each detector implements `ProjectDetector` interface (`detect()` + `getMetadata()`)
-- Node.js detector refines to `nodejs-frontend` when Vite/Next.js/Nuxt config files are present
+- `electron/ipc/project.ipc.ts`: project CRUD, file access, settings
+- `electron/ipc/process.ipc.ts`: service start/stop/restart, logs, health events
+- `electron/ipc/terminal.ipc.ts`: PTY terminals
+- `electron/ipc/git.ipc.ts`: Git operations via `simple-git`
+- `electron/ipc/workspace.ipc.ts`: scenes and architecture analysis
+- `electron/ipc/system.ipc.ts`: dashboard system metrics
 
-### Preload bridge — `electron/preload.ts`
+### Renderer
 
-Exposes `window.electronAPI` via `contextBridge`. All main↔renderer communication goes through `ipcRenderer.invoke` (request) and `ipcRenderer.on` (push events). Context isolation is enabled; nodeIntegration is disabled.
+- `src/AppLayout.vue`: top-level shell
+- `src/stores/projects.ts`: project state
+- `src/types/project.ts`: shared domain types
+- `src/api/electron-api.ts`: typed renderer bridge
+- `src/views/ProjectOverview.vue`: project tab container and cross-tab orchestration
+- `src/views/ServicesPage.vue`: service control + logs + health
+- `src/views/FileExplorer.vue`: file tree + preview + search
+- `src/views/WorkspaceScenesPage.vue`: scene/workflow templates
 
-### Renderer (Vue 3) — `src/`
+## High-Value Patterns
 
-- **Stack**: Vue 3 Composition API + Pinia + Naive UI (dark theme, custom overrides in `App.vue`)
-- **Entry**: `src/main.ts` → `App.vue` (theme provider) → `AppLayout.vue` (sidebar + content area)
-- **State**: Single Pinia store `src/stores/projects.ts` manages the active project selection
-- **API layer**: `src/api/electron-api.ts` wraps all `window.electronAPI` calls with typed interfaces
-- **Types**: `src/types/project.ts` defines all shared domain types (Project, Service, Scene, Architecture, etc.)
+### If you change service behavior
 
-**Views** (`src/views/`): `ProjectList`, `ProjectOverview` (tab container), `FileExplorer`, `TerminalPage`, `GitPanel`, `ServicesPage`, `ArchitecturePage`, `WorkspaceScenesPage`, `SettingsPage`
+Check:
 
-### Two separate TypeScript configs
+- `src/types/project.ts`
+- `electron/core/process-manager.ts`
+- `electron/ipc/process.ipc.ts`
+- `electron/preload.ts`
+- `src/api/electron-api.ts`
+- `src/views/ServicesPage.vue`
 
-- `tsconfig.json` — renderer (ESNext modules, bundler resolution, `@/*` → `src/*`)
-- `electron/tsconfig.json` — main process (CommonJS, node resolution, excludes tests)
+### If you change scene/workflow behavior
 
-### Key conventions
+Check:
 
-- IPC channel names follow `domain:action` pattern (e.g., `git:status`, `terminal:create`, `service:start`)
-- Push events from main to renderer use `domain:event` (e.g., `service:log`, `service:status`, `terminal:data`, `terminal:exit`)
-- `@/` path alias maps to `src/` in both vite.config.ts and tsconfig.json
-- `node-pty` is externalized in the Vite rollup config (native module, cannot be bundled)
-- Tests use vitest with `globals: true` (no need to import `describe`/`it`/`expect`)
-- Store uses in-memory cache after first load; IPC handlers call `store.load()` which returns the cached instance
+- `src/types/project.ts`
+- `electron/core/store.ts`
+- `electron/ipc/workspace.ipc.ts`
+- `src/views/WorkspaceScenesPage.vue`
+- `src/views/ProjectOverview.vue`
+
+### If you change file browsing/search
+
+Check:
+
+- `electron/ipc/project.ipc.ts`
+- `src/api/electron-api.ts`
+- `src/components/FileNode.vue`
+- `src/views/FileExplorer.vue`
+
+## Verification Guidance
+
+- For store/data-shape changes: run `npm run test:store`
+- For detector changes: run `npm run test:detectors`
+- For renderer or IPC changes: run `npm run check:quick`
+- For large cross-layer changes: run `npm run check`
+
+## Review Mode
+
+If asked to review code:
+
+- prioritize bugs, regressions, risky assumptions, and missing tests
+- list findings first
+- keep summaries brief
+- include file references when possible
+
+## Vibe Coding Shortcuts
+
+Project custom commands live under `.claude/commands/`.
+
+Recommended starting points:
+
+- `/feature ...`
+- `/debug ...`
+- `/review`
+- `/check`
+- `/ship`

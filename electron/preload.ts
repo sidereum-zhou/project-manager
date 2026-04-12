@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   listFiles: (dirPath: string) => ipcRenderer.invoke('project:listFiles', dirPath),
   openFile: (filePath: string) => ipcRenderer.invoke('project:openFile', filePath),
   readTextFile: (filePath: string, maxLength?: number) => ipcRenderer.invoke('project:readTextFile', filePath, maxLength),
+  writeTextFile: (filePath: string, content: string) => ipcRenderer.invoke('project:writeTextFile', filePath, content),
   searchFiles: (projectPath: string, query: string) => ipcRenderer.invoke('project:searchFiles', projectPath, query),
 
   // Settings

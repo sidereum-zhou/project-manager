@@ -99,6 +99,10 @@ export const electronApi = {
     return api.readTextFile(filePath, maxLength);
   },
 
+  async writeTextFile(filePath: string, content: string): Promise<boolean> {
+    return api.writeTextFile(filePath, content);
+  },
+
   async searchFiles(projectPath: string, query: string): Promise<FileSearchResult[]> {
     return api.searchFiles(projectPath, query);
   },
