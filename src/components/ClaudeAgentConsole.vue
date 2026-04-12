@@ -63,7 +63,7 @@
 
         <template v-else>
           <div class="cac-messages">
-            <template v-for="msg in store.currentConversation" :key="msg.id">
+            <template v-for="msg in store.displayConversation" :key="msg.id">
               <!-- User bubble -->
               <div v-if="msg.role === 'user'" class="cac-bubble cac-bubble--user">
                 <div class="cac-bubble-content">
@@ -286,7 +286,7 @@ watch(drawerOpen, (val) => {
 
 // Auto-scroll when new conversation messages arrive
 watch(
-  () => store.currentConversation.length,
+  () => store.displayConversation.length,
   async () => {
     await nextTick();
     scrollAnchor.value?.scrollIntoView({ behavior: 'smooth', block: 'end' });

@@ -35,6 +35,9 @@ export const useClaudeConsoleStore = defineStore('claude-console', () => {
   let pendingAssistantSubagentName = '';
   let msgIndex = 0;
 
+  // Reactive live preview of the currently-streaming assistant message
+  const liveMessage = ref<ConversationMessage | null>(null);
+
   // ── Computed ─────────────────────────────────────────────
 
   const currentRun = computed(() => {
@@ -70,6 +73,15 @@ export const useClaudeConsoleStore = defineStore('claude-console', () => {
   const currentConversation = computed(() => {
     if (!currentRunId.value) return [];
     return conversationMessages.value.get(currentRunId.value) ?? [];
+  });
+
+  // Includes the live streaming message at the end (if any)
+  const displayConversation = computed(() => {
+    const base = currentConversation.value;
+    if (liveMessage.value) {
+      return [...base, liveMessage.value];
+    }
+    return base;
   });
 
   // ── Actions ──────────────────────────────────────────────
@@ -186,6 +198,7 @@ export const useClaudeConsoleStore = defineStore('claude-console', () => {
         if (text) {
           pendingAssistantText += (pendingAssistantText ? '\n' : '') + text;
         }
+        updateLiveMessage();
         if (toolUseCount > 0) {
           refreshCurrentRunState(runId);
         }
@@ -206,6 +219,7 @@ export const useClaudeConsoleStore = defineStore('claude-console', () => {
             status: 'running',
           });
         }
+        updateLiveMessage();
         break;
       }
 
@@ -235,6 +249,7 @@ export const useClaudeConsoleStore = defineStore('claude-console', () => {
             }
           }
         }
+        updateLiveMessage();
         break;
       }
 
@@ -310,6 +325,7 @@ export const useClaudeConsoleStore = defineStore('claude-console', () => {
       case 'subagent_started': {
         pendingAssistantSubagentName = (event.payload.agentName as string) ?? '';
         refreshSubagents(runId);
+        updateLiveMessage();
         break;
       }
     }
@@ -336,6 +352,24 @@ export const useClaudeConsoleStore = defineStore('claude-console', () => {
     pendingAssistantSessionId = '';
     pendingAssistantIsSubagent = false;
     pendingAssistantSubagentName = '';
+    liveMessage.value = null;
+  }
+
+  function updateLiveMessage(): void {
+    if (pendingAssistantText || pendingToolCalls.size > 0) {
+      liveMessage.value = {
+        id: 'live',
+        role: 'assistant',
+        sessionId: pendingAssistantSessionId || '',
+        timestamp: pendingAssistantTimestamp || new Date().toISOString(),
+        textContent: pendingAssistantText || undefined,
+        toolCalls: Array.from(pendingToolCalls.values()),
+        isSubagent: pendingAssistantIsSubagent || undefined,
+        subagentName: pendingAssistantSubagentName || undefined,
+      };
+    } else {
+      liveMessage.value = null;
+    }
   }
 
   async function refreshCurrentRunState(runId: string): Promise<void> {
@@ -445,6 +479,7 @@ export const useClaudeConsoleStore = defineStore('claude-console', () => {
                 durationMs: (event.payload.duration_ms as number) ?? 0,
                 costUsd: event.payload.total_cost_usd as number,
                 totalTurns: event.payload.num_turns as number,
+                isSubagent: false,
               },
             });
             conversationMessages.value.set(runId, msgs);
@@ -468,6 +503,7 @@ export const useClaudeConsoleStore = defineStore('claude-console', () => {
     runEvents.value.clear();
     conversationMessages.value.clear();
     currentRunId.value = null;
+    liveMessage.value = null;
     pendingApprovals.value = [];
     pendingQuestions.value = [];
     todos.value = [];
@@ -488,6 +524,7 @@ export const useClaudeConsoleStore = defineStore('claude-console', () => {
     currentRun,
     currentEvents,
     currentConversation,
+    displayConversation,
     isRunning,
     isWaiting,
     hasPendingInput,
