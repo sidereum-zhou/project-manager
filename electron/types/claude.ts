@@ -130,3 +130,36 @@ export interface ClaudeQuestionAnswer {
   questionId: string;
   answer: string;
 }
+
+// ── Chat-style aggregation ────────────────────────────────
+
+export interface ToolCallSummary {
+  id: string;
+  toolName: string;
+  displayName?: string;
+  input: string;
+  output?: string;
+  status: 'running' | 'success' | 'error';
+  durationMs?: number;
+}
+
+export interface RunResultSummary {
+  status: 'success' | 'error';
+  text?: string;
+  durationMs: number;
+  costUsd?: number;
+  totalTurns?: number;
+  isSubagent?: boolean;
+}
+
+export interface ConversationMessage {
+  id: string;
+  role: 'user' | 'assistant';
+  sessionId: string;
+  timestamp: string;
+  textContent?: string;
+  toolCalls: ToolCallSummary[];
+  result?: RunResultSummary;
+  subagentName?: string;
+  isSubagent?: boolean;
+}
