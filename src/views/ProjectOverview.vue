@@ -5,6 +5,19 @@
       <n-tabs v-model:value="activeTab" type="line" animated class="overview-tabs">
       <n-tab-pane name="overview" tab="概览">
         <div class="overview-tab overview-tab--scroll">
+          <!-- Project Header -->
+          <section class="overview-project-header">
+            <div class="overview-project-header-info">
+              <h2 class="overview-project-name">{{ project.name }}</h2>
+              <div class="overview-project-meta">
+                <n-tag :type="tagType" size="small" round>{{ typeLabel }}</n-tag>
+                <span class="pm-pill">{{ project.packageManager || '未识别包管理器' }}</span>
+                <span v-if="project.version" class="pm-pill">v{{ project.version }}</span>
+              </div>
+              <p class="overview-path">{{ project.path }}</p>
+            </div>
+          </section>
+
           <!-- Bento Metrics Grid -->
           <section class="bento-grid">
             <article class="bento-card">
@@ -133,6 +146,26 @@
             </div>
           </section>
 
+          <!-- Actions Bar -->
+          <section class="overview-actions-bar">
+            <button class="pm-btn-primary" @click="handleStart">
+              <span class="material-symbols-outlined">play_arrow</span>
+              启动项目
+            </button>
+            <button class="pm-btn-secondary" @click="handleInstall">
+              <span class="material-symbols-outlined">download</span>
+              安装依赖
+            </button>
+            <button class="pm-btn-secondary" @click="handleStop">
+              <span class="material-symbols-outlined">stop</span>
+              停止
+            </button>
+            <button class="pm-btn-secondary" @click="handleRestart">
+              <span class="material-symbols-outlined">refresh</span>
+              重启
+            </button>
+          </section>
+
           <!-- Footer Status -->
           <footer class="overview-footer">
             <div class="overview-footer-stats">
@@ -211,77 +244,12 @@
     </n-tabs>
     </div>
 
-    <!-- Right Sidebar: collapsed by default -->
-    <aside class="overview-sidebar" :class="{ 'overview-sidebar--open': sidebarOpen }">
-      <div class="overview-sidebar-content">
-        <div class="overview-sidebar-header">
-          <div class="overview-sidebar-copy">
-            <span class="pm-kicker">Active Project</span>
-            <h2 class="overview-title">{{ project.name }}</h2>
-            <n-tag :type="tagType" size="small" round>{{ typeLabel }}</n-tag>
-          </div>
-          <button class="overview-sidebar-close" @click="sidebarOpen = false">
-            <span class="material-symbols-outlined">close</span>
-          </button>
-        </div>
-
-        <p class="overview-path">{{ project.path }}</p>
-
-        <div class="overview-pills">
-          <span class="pm-pill">{{ project.packageManager || '未识别包管理器' }}</span>
-          <span class="pm-pill">{{ addedAtLabel }}</span>
-          <span v-if="project.version" class="pm-pill">v{{ project.version }}</span>
-          <span class="pm-pill">{{ workspaceLabel }}</span>
-          <span class="pm-pill">{{ serviceLabel }}</span>
-        </div>
-
-        <div class="overview-sidebar-divider"></div>
-
-        <div class="overview-actions">
-          <n-button size="medium" block @click="handleInstall">
-            <template #icon>
-              <n-icon :component="DownloadOutline" />
-            </template>
-            安装依赖
-          </n-button>
-          <n-button type="primary" size="medium" block @click="handleStart">
-            <template #icon>
-              <n-icon :component="PlayOutline" />
-            </template>
-            启动项目
-          </n-button>
-          <n-button size="medium" block @click="handleStop">
-            <template #icon>
-              <n-icon :component="StopOutline" />
-            </template>
-            停止
-          </n-button>
-          <n-button size="medium" block @click="handleRestart">
-            <template #icon>
-              <n-icon :component="RefreshOutline" />
-            </template>
-            重启
-          </n-button>
-        </div>
-      </div>
-    </aside>
-
-    <!-- Toggle button (visible when sidebar closed) -->
-    <button class="overview-sidebar-toggle" :class="{ 'overview-sidebar-toggle--hidden': sidebarOpen }" @click="sidebarOpen = true">
-      <span class="material-symbols-outlined">info</span>
-    </button>
   </div>
 </template>
 
 <script setup lang="ts">
 import { ref, computed, watch, onMounted } from 'vue';
-import { NTabs, NTabPane, NButton, NTag, NIcon, useMessage } from 'naive-ui';
-import {
-  DownloadOutline,
-  PlayOutline,
-  StopOutline,
-  RefreshOutline,
-} from '@vicons/ionicons5';
+import { NTabs, NTabPane, NTag, useMessage } from 'naive-ui';
 import type { Project, ProjectTab, WorkspaceScene } from '@/types/project';
 import type { GitCommit, GitStatusResult } from '@/api/electron-api';
 import { electronApi } from '@/api/electron-api';
@@ -300,7 +268,6 @@ const props = defineProps<{ project: Project }>();
 const message = useMessage();
 const projectStore = useProjectStore();
 const activeTab = ref<ProjectTab>(props.project.lastOpenedTab || 'overview');
-const sidebarOpen = ref(false);
 const terminalId = ref<string | null>(null);
 const pendingTerminalRun = ref<{ commands: string[]; delayMs: number } | null>(null);
 
@@ -333,7 +300,7 @@ async function loadGitData(): Promise<void> {
 
 onMounted(() => {
   void loadGitData();
-  // Pre-create terminal so sidebar buttons work immediately
+  // Pre-create terminal so action bar buttons work immediately
   void ensureTerminal();
 });
 
@@ -592,9 +559,9 @@ async function applySceneServices(scene: WorkspaceScene): Promise<void> {
 <style scoped>
 .overview {
   display: flex;
+  flex-direction: column;
   height: 100%;
   overflow: hidden;
-  position: relative;
 }
 
 /* Main content area */
@@ -608,123 +575,12 @@ async function applySceneServices(scene: WorkspaceScene): Promise<void> {
   box-sizing: border-box;
 }
 
-/* Hero (now in sidebar) */
-.overview-title {
-  font-size: 1.125rem;
-  line-height: 1.2;
-  font-weight: 700;
-  color: var(--pm-text-primary);
-  letter-spacing: -0.01em;
-}
 .overview-path {
   color: var(--pm-text-secondary);
   font-size: 0.6875rem;
   line-height: 1.6;
   word-break: break-all;
   margin-top: 8px;
-}
-.overview-pills {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  margin-top: 10px;
-}
-.overview-actions {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-/* Right Sidebar */
-.overview-sidebar {
-  width: 0;
-  flex-shrink: 0;
-  background: var(--pm-surface-container-lowest);
-  border-left: 1px solid rgba(172, 179, 180, 0.15);
-  overflow: hidden;
-  transition: width 0.25s ease;
-}
-.overview-sidebar--open {
-  width: 280px;
-}
-.overview-sidebar-content {
-  width: 280px;
-  padding: 20px;
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  height: 100%;
-  overflow-y: auto;
-}
-.overview-sidebar-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 8px;
-}
-.overview-sidebar-copy {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-  min-width: 0;
-}
-.overview-sidebar-close {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: none;
-  border-radius: var(--pm-radius-sm);
-  background: transparent;
-  color: var(--pm-text-tertiary);
-  cursor: pointer;
-  flex-shrink: 0;
-  transition: all 0.15s;
-}
-.overview-sidebar-close:hover {
-  background: var(--pm-surface-container-low);
-  color: var(--pm-text-primary);
-}
-.overview-sidebar-close .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
-  font-size: 1.1rem;
-}
-.overview-sidebar-divider {
-  height: 1px;
-  background: rgba(172, 179, 180, 0.15);
-  margin: 12px 0;
-}
-
-/* Sidebar Toggle Button */
-.overview-sidebar-toggle {
-  position: absolute;
-  right: 12px;
-  top: 12px;
-  z-index: 10;
-  width: 32px;
-  height: 32px;
-  display: grid;
-  place-items: center;
-  border: none;
-  border-radius: var(--pm-radius-sm);
-  background: var(--pm-surface-container-lowest);
-  box-shadow: var(--pm-shadow-card);
-  color: var(--pm-text-secondary);
-  cursor: pointer;
-  transition: all 0.25s ease;
-  opacity: 1;
-}
-.overview-sidebar-toggle:hover {
-  color: var(--pm-primary);
-  box-shadow: var(--pm-shadow-vapor);
-}
-.overview-sidebar-toggle .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
-  font-size: 1.1rem;
-}
-.overview-sidebar-toggle--hidden {
-  opacity: 0;
-  pointer-events: none;
 }
 
 /* Bento Grid */
@@ -1057,7 +913,95 @@ async function applySceneServices(scene: WorkspaceScene): Promise<void> {
   .overview { padding: 16px; }
   .bento-grid { grid-template-columns: 1fr; }
   .overview-facts { grid-template-columns: 1fr; }
-  .overview-title { font-size: 1.25rem; }
   .overview-footer { flex-direction: column; align-items: flex-start; }
+}
+
+/* Project Header */
+.overview-project-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 0 0 16px;
+  border-bottom: 1px solid rgba(172, 179, 180, 0.15);
+  margin-bottom: 16px;
+}
+
+.overview-project-name {
+  font-size: 1.125rem;
+  line-height: 1.2;
+  font-weight: 700;
+  color: var(--pm-text-primary);
+  letter-spacing: -0.01em;
+}
+
+.overview-project-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 8px;
+  flex-wrap: wrap;
+}
+
+.overview-project-header-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* Actions Bar */
+.overview-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 16px;
+  padding: 12px 20px;
+  background: var(--pm-surface-container-lowest);
+  border: 1px solid rgba(172, 179, 180, 0.15);
+  border-radius: var(--pm-radius-md);
+  box-shadow: var(--pm-shadow-card);
+}
+
+.pm-btn-primary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--pm-radius-xs);
+  background: var(--pm-primary);
+  color: var(--pm-text-inverse);
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.pm-btn-primary:hover {
+  background: var(--pm-primary-dim);
+}
+.pm-btn-primary .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 18;
+  font-size: 1rem;
+}
+
+.pm-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border: none;
+  border-radius: var(--pm-radius-xs);
+  background: var(--pm-surface-container-highest);
+  color: var(--pm-text-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.pm-btn-secondary:hover {
+  background: var(--pm-surface-container-high);
+}
+.pm-btn-secondary .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 18;
+  font-size: 1rem;
 }
 </style>
