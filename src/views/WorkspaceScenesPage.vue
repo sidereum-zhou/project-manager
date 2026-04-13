@@ -1,3 +1,4 @@
+<!-- @deprecated 场景模板功能将在"部署 > 编排模板"模块中被 DeployTemplate 替代。保留文件以供参考。 -->
 <template>
   <div class="scenes-page">
     <section class="scenes-hero pm-panel">

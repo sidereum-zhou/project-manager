@@ -1,3 +1,4 @@
+<!-- @deprecated 该视图已被新的导航结构替代。系统信息可在后续"运维 > 服务监控"模块中整合。项目列表已移至侧边栏底部。保留文件以供参考。 -->
 <template>
   <div class="dashboard">
     <!-- Header: compact, fixed height -->
