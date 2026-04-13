@@ -101,48 +101,83 @@ export class QualityScanner {
 
     this.emitProgress('init', 0.5, 'Finding tsconfig.json...');
     const tsConfigPath = this.findTsConfig();
+    console.log(`[quality-scanner] projectPath=${this.projectPath}, tsConfig=${tsConfigPath}`);
 
     this.emitProgress('init', 1, 'Creating ts-morph project...');
     this.tsProject = this.addSourceFiles(tsConfigPath);
+
+    let sourceFiles = this.tsProject.getSourceFiles();
+    this.scannedFiles = sourceFiles.length;
+    console.log(`[quality-scanner] loaded ${sourceFiles.length} source files`);
+
+    // Fallback: if 0 files loaded via tsconfig, try manual walking
+    if (sourceFiles.length === 0) {
+      console.log('[quality-scanner] 0 files loaded, falling back to manual walk');
+      this.tsProject = new Project({
+        compilerOptions: { allowJs: true, noEmit: true },
+      });
+      this.addFilesManually(this.tsProject);
+      sourceFiles = this.tsProject.getSourceFiles();
+      this.scannedFiles = sourceFiles.length;
+      console.log(`[quality-scanner] manual walk loaded ${sourceFiles.length} files`);
+    }
 
     if (this.cancelled) {
       return this.buildResult(allIssues);
     }
 
-    const sourceFiles = this.tsProject.getSourceFiles();
-    this.scannedFiles = sourceFiles.length;
-
     // -- Dimension 1: Complexity (0-25%) --
-    const complexityIssues = this.scanComplexity(sourceFiles);
-    allIssues.push(...complexityIssues);
+    try {
+      const complexityIssues = this.scanComplexity(sourceFiles);
+      allIssues.push(...complexityIssues);
+      console.log(`[quality-scanner] complexity: ${complexityIssues.length} issues`);
+    } catch (e) {
+      console.error('[quality-scanner] complexity scan failed:', e);
+    }
 
     if (this.cancelled) {
       return this.buildResult(allIssues);
     }
 
     // -- Dimension 2: Duplicates (25-50%) --
-    const duplicateIssues = this.scanDuplicates(sourceFiles);
-    allIssues.push(...duplicateIssues);
+    try {
+      const duplicateIssues = this.scanDuplicates(sourceFiles);
+      allIssues.push(...duplicateIssues);
+      console.log(`[quality-scanner] duplicates: ${duplicateIssues.length} issues`);
+    } catch (e) {
+      console.error('[quality-scanner] duplicate scan failed:', e);
+    }
 
     if (this.cancelled) {
       return this.buildResult(allIssues);
     }
 
     // -- Dimension 3: Unused exports (50-75%) --
-    const unusedIssues = this.scanUnusedExports(sourceFiles);
-    allIssues.push(...unusedIssues);
+    try {
+      const unusedIssues = this.scanUnusedExports(sourceFiles);
+      allIssues.push(...unusedIssues);
+      console.log(`[quality-scanner] unused exports: ${unusedIssues.length} issues`);
+    } catch (e) {
+      console.error('[quality-scanner] unused exports scan failed:', e);
+    }
 
     if (this.cancelled) {
       return this.buildResult(allIssues);
     }
 
     // -- Dimension 4: Type safety (75-90%) --
-    this.emitProgress('typeSafety', 75, 'Resolving diagnostics...');
-    const typeSafetyIssues = this.scanTypeSafety(sourceFiles);
-    allIssues.push(...typeSafetyIssues);
+    try {
+      this.emitProgress('typeSafety', 75, 'Resolving diagnostics...');
+      const typeSafetyIssues = this.scanTypeSafety(sourceFiles);
+      allIssues.push(...typeSafetyIssues);
+      console.log(`[quality-scanner] typeSafety: ${typeSafetyIssues.length} issues`);
+    } catch (e) {
+      console.error('[quality-scanner] typeSafety scan failed:', e);
+    }
 
     // -- Scoring & aggregation (90-100%) --
     this.emitProgress('scoring', 95, 'Calculating score...');
+    console.log(`[quality-scanner] total: ${allIssues.length} issues, duration: ${Date.now() - this.startTime}ms`);
 
     return this.buildResult(allIssues);
   }

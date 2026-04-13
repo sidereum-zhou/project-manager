@@ -13,25 +13,34 @@ let activeScanner: QualityScanner | null = null;
 
 export function registerQualityIpc(store: Store): void {
   ipcMain.handle('quality:scan', async (_event, projectId: string, projectPath: string) => {
+    console.log(`[quality:scan] IPC received: projectId=${projectId}, projectPath=${projectPath}`);
+
     if (activeScanner) {
       activeScanner.cancel();
     }
 
-    const scanner = new QualityScanner(
-      projectId,
-      projectPath,
-      store,
-      (progress: QualityScanProgress) => {
-        for (const win of BrowserWindow.getAllWindows()) {
-          win.webContents.send('quality:scanProgress', progress);
+    let scanner: QualityScanner;
+    try {
+      scanner = new QualityScanner(
+        projectId,
+        projectPath,
+        store,
+        (progress: QualityScanProgress) => {
+          for (const win of BrowserWindow.getAllWindows()) {
+            win.webContents.send('quality:scanProgress', progress);
+          }
         }
-      }
-    );
+      );
+    } catch (e: any) {
+      console.error('[quality:scan] Scanner constructor failed:', e);
+      throw e;
+    }
 
     activeScanner = scanner;
 
     try {
       const result = await scanner.scan();
+      console.log(`[quality:scan] Scan completed: ${result.summary.scannedFiles} files, ${result.summary.total} issues, score ${result.score}`);
       const scans = store.getQualityScans(projectId);
       scans.unshift(result);
       if (scans.length > 20) {
@@ -39,6 +48,9 @@ export function registerQualityIpc(store: Store): void {
       }
       store.saveQualityScans(projectId, scans);
       return result;
+    } catch (e: any) {
+      console.error('[quality:scan] Scan failed:', e);
+      throw e;
     } finally {
       activeScanner = null;
     }

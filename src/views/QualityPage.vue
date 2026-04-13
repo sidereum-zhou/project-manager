@@ -21,6 +21,13 @@
       </div>
     </section>
 
+    <!-- Error display -->
+    <div v-if="qualityStore.error" class="quality-error pm-panel" style="margin: 0;">
+      <span class="material-symbols-outlined" style="color: var(--pm-error);">error</span>
+      <span style="color: var(--pm-error); font-size: 0.75rem;">{{ qualityStore.error }}</span>
+      <n-button size="tiny" quaternary @click="qualityStore.error = null">关闭</n-button>
+    </div>
+
     <!-- Score Strip -->
     <section v-if="currentResult" class="quality-score-strip">
       <div class="quality-gauge-card bento-card">
@@ -490,6 +497,18 @@ watch(() => props.project.id, () => {
   gap: 12px;
   overflow: hidden;
   position: relative;
+}
+
+/* Error */
+.quality-error {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 16px;
+  font-size: 0.75rem;
+  border-radius: var(--pm-radius-sm);
+  background: rgba(186, 26, 26, 0.06);
+  border: 1px solid rgba(186, 26, 26, 0.15);
 }
 
 /* Hero */
