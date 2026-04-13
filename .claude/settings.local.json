@@ -17,7 +17,10 @@
       "Bash(node -e \"const pkg = require\\('./node_modules/@anthropic-ai/claude-agent-sdk/package.json'\\); console.log\\(JSON.stringify\\(pkg.optionalDependencies || {}, null, 2\\)\\)\")",
       "Bash(git add:*)",
       "Bash(git commit -m ':*)",
-      "Bash(git commit:*)"
+      "Bash(git commit:*)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(node -e \"try{require.resolve\\('ts-morph'\\);console.log\\('ts-morph found'\\)}catch{console.log\\('ts-morph not found'\\)}\")",
+      "Bash(node -e \"try{require.resolve\\('typescript'\\);console.log\\('typescript found'\\)}catch{console.log\\('typescript not found'\\)}\")"
     ]
   }
 }
