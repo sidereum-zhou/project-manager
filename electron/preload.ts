@@ -138,4 +138,25 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateScene: (sceneId: string, updates: any) => ipcRenderer.invoke('scene:update', sceneId, updates),
   removeScene: (sceneId: string) => ipcRenderer.invoke('scene:remove', sceneId),
   analyzeArchitecture: (project: any) => ipcRenderer.invoke('architecture:analyze', project),
+
+  // Quality Scanner
+  scanQuality: (projectId: string, projectPath: string) =>
+    ipcRenderer.invoke('quality:scan', projectId, projectPath),
+  getQualityHistory: (projectId: string) =>
+    ipcRenderer.invoke('quality:getHistory', projectId),
+  getQualityScan: (scanId: string) =>
+    ipcRenderer.invoke('quality:getScan', scanId),
+  deleteQualityScan: (scanId: string) =>
+    ipcRenderer.invoke('quality:deleteScan', scanId),
+  compareQualityScans: (baselineScanId: string, compareScanId: string) =>
+    ipcRenderer.invoke('quality:compare', baselineScanId, compareScanId),
+  analyzeQualityIssue: (request: any) =>
+    ipcRenderer.invoke('quality:analyzeIssue', request),
+  cancelQualityScan: () =>
+    ipcRenderer.invoke('quality:cancel'),
+  onQualityScanProgress: (callback: (payload: any) => void) => {
+    const listener = (_event: Electron.IpcRendererEvent, payload: any) => callback(payload);
+    ipcRenderer.on('quality:scanProgress', listener);
+    return () => ipcRenderer.removeListener('quality:scanProgress', listener);
+  },
 });

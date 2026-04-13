@@ -19,6 +19,13 @@ import type {
   ClaudeSubagentInvocation,
   ClaudeTodoItem,
 } from '@/types/claude';
+import type {
+  QualityScanResult,
+  QualityScanProgress,
+  QualityScanComparison,
+  QualityAnalyzeRequest,
+  QualityAnalyzeResult,
+} from '@/types/quality';
 
 export interface DetectedProject {
   name: string;
@@ -368,5 +375,38 @@ export const electronApi = {
 
   onClaudeEvent(callback: (event: ClaudeRunEvent) => void): () => void {
     return api.onClaudeEvent(callback);
+  },
+
+  // Quality Scanner
+  async scanQuality(projectId: string, projectPath: string): Promise<QualityScanResult> {
+    return api.scanQuality(projectId, projectPath);
+  },
+
+  async getQualityHistory(projectId: string): Promise<QualityScanResult[]> {
+    return api.getQualityHistory(projectId);
+  },
+
+  async getQualityScan(scanId: string): Promise<QualityScanResult | null> {
+    return api.getQualityScan(scanId);
+  },
+
+  async deleteQualityScan(scanId: string): Promise<boolean> {
+    return api.deleteQualityScan(scanId);
+  },
+
+  async compareQualityScans(baselineScanId: string, compareScanId: string): Promise<QualityScanComparison> {
+    return api.compareQualityScans(baselineScanId, compareScanId);
+  },
+
+  async analyzeQualityIssue(request: QualityAnalyzeRequest): Promise<QualityAnalyzeResult> {
+    return api.analyzeQualityIssue(request);
+  },
+
+  async cancelQualityScan(): Promise<boolean> {
+    return api.cancelQualityScan();
+  },
+
+  onQualityScanProgress(callback: (payload: QualityScanProgress) => void): () => void {
+    return api.onQualityScanProgress(callback);
   },
 };

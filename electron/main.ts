@@ -9,6 +9,7 @@ import { registerGitIpc } from './ipc/git.ipc';
 import { registerWorkspaceIpc } from './ipc/workspace.ipc';
 import { registerSystemIpc } from './ipc/system.ipc';
 import { registerClaudeIpc, stopAllClaudeRuns } from './ipc/claude-agent.ipc';
+import { registerQualityIpc } from './ipc/quality.ipc';
 
 let mainWindow: BrowserWindow | null = null;
 let processManager: ProcessManager;
@@ -25,6 +26,7 @@ function initApp(): void {
   registerWorkspaceIpc(store);
   registerSystemIpc();
   void registerClaudeIpc();
+  registerQualityIpc(store);
 }
 
 function createWindow(): void {
