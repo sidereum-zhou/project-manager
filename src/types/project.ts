@@ -1,5 +1,7 @@
+import type { QualityScanResult } from './quality';
+
 export type ProjectType = 'nodejs' | 'nodejs-frontend' | 'python' | 'java' | 'monorepo' | 'unknown';
-export type ProjectTab = 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'claude' | 'settings';
+export type ProjectTab = 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'claude' | 'quality' | 'settings';
 
 export type ProcessStatus = 'starting' | 'running' | 'stopped' | 'error';
 export type ServiceHealthState = 'disabled' | 'unknown' | 'checking' | 'healthy' | 'unhealthy';
@@ -117,4 +119,5 @@ export interface StoreData {
   projects: Project[];
   workspaceScenes: WorkspaceScene[];
   settings: AppSettings;
+  qualityScans: QualityScanResult[];
 }

@@ -68,6 +68,7 @@ export interface StoreData {
     defaultTerminalFont: string;
     defaultTerminalFontSize: number;
   };
+  qualityScans: any[];
 }
 
 const DEFAULT_DATA: StoreData = {
@@ -77,6 +78,7 @@ const DEFAULT_DATA: StoreData = {
     defaultTerminalFont: 'Consolas',
     defaultTerminalFontSize: 14,
   },
+  qualityScans: [],
 };
 
 export class Store {
@@ -139,6 +141,7 @@ export class Store {
         ...DEFAULT_DATA.settings,
         ...(data.settings || {}),
       },
+      qualityScans: Array.isArray(data.qualityScans) ? data.qualityScans : [],
     };
   }
 }
