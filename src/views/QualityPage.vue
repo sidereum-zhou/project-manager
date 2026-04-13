@@ -483,8 +483,16 @@ onMounted(() => {
   qualityStore.fetchHistory(props.project.id);
 });
 
-watch(() => props.project.id, () => {
-  qualityStore.fetchHistory(props.project.id);
+watch(() => props.project.id, (newId, oldId) => {
+  if (newId !== oldId) {
+    qualityStore.currentResult = null;
+    qualityStore.selectedIssueId = null;
+    qualityStore.error = null;
+    qualityStore.severityFilter = [];
+    qualityStore.categoryFilter = [];
+    qualityStore.fileSearch = '';
+    qualityStore.fetchHistory(newId);
+  }
 });
 </script>
 
