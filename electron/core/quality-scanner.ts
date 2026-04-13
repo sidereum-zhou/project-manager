@@ -5,9 +5,9 @@ import {
   Project,
   SourceFile,
   SyntaxKind,
-  type FunctionDeclaration,
-  type MethodDeclaration,
-  type ArrowFunction,
+  FunctionDeclaration,
+  MethodDeclaration,
+  ArrowFunction,
   type FunctionExpression,
 } from 'ts-morph';
 import * as ts from 'typescript';
@@ -138,7 +138,6 @@ export class QualityScanner {
 
     // -- Dimension 4: Type safety (75-90%) --
     this.emitProgress('typeSafety', 75, 'Resolving diagnostics...');
-    await this.tsProject.resolveSourceFiles?.() ?? Promise.resolve();
     const typeSafetyIssues = this.scanTypeSafety(sourceFiles);
     allIssues.push(...typeSafetyIssues);
 
@@ -486,7 +485,7 @@ export class QualityScanner {
         projectId: this.projectId,
         filePath: this.relativePath(filePath),
         line,
-        column: diag.getColumnNumber() ?? undefined,
+        column: undefined,
         severity,
         category: 'typeSafety',
         message: typeof message === 'string' ? message : message.getMessageText(),
@@ -836,8 +835,8 @@ export class QualityScanner {
     // Arrow / function expression: check if parent is a variable declaration
     try {
       const parent = fn.getParent();
-      if (parent?.getKind() === SyntaxKind.VariableDeclarator) {
-        return (parent as any).getName() ?? '<anonymous>';
+      if (parent?.getKind() === SyntaxKind.VariableDeclaration) {
+        return (parent as any).getName?.() ?? '<anonymous>';
       }
       if (parent?.getKind() === SyntaxKind.PropertyAssignment) {
         return (parent as any).getName() ?? '<anonymous>';
