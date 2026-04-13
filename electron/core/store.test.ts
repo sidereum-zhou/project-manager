@@ -166,4 +166,51 @@ describe('Store', () => {
     expect(reloaded.workspaceScenes[0].stopOtherServices).toBe(false);
     expect(reloaded.workspaceScenes[0].commandDelayMs).toBe(300);
   });
+
+  describe('quality scans', () => {
+    it('should return empty array for new store', () => {
+      expect(store.getQualityScans('proj-1')).toEqual([]);
+    });
+
+    it('should save and retrieve quality scans per project', () => {
+      const scans = [
+        { id: 's1', projectId: 'proj-1', scanTime: '2026-04-13T00:00:00Z', score: 85 },
+        { id: 's2', projectId: 'proj-1', scanTime: '2026-04-13T01:00:00Z', score: 90 },
+      ];
+      store.saveQualityScans('proj-1', scans);
+      const loaded = store.load();
+      expect(loaded.qualityScans).toHaveLength(2);
+      expect(store.getQualityScans('proj-1')).toHaveLength(2);
+      expect(store.getQualityScans('proj-2')).toHaveLength(0);
+    });
+
+    it('should replace existing scans when saving', () => {
+      store.saveQualityScans('proj-1', [{ id: 's1', projectId: 'proj-1' }]);
+      store.saveQualityScans('proj-1', [{ id: 's2', projectId: 'proj-1' }]);
+      expect(store.getQualityScans('proj-1')).toHaveLength(1);
+      expect(store.getQualityScans('proj-1')[0].id).toBe('s2');
+    });
+
+    it('should get all scans across projects', () => {
+      store.saveQualityScans('proj-1', [{ id: 's1', projectId: 'proj-1' }]);
+      store.saveQualityScans('proj-2', [{ id: 's2', projectId: 'proj-2' }]);
+      expect(store.getAllQualityScans()).toHaveLength(2);
+    });
+
+    it('should delete a single scan', () => {
+      store.saveQualityScans('proj-1', [
+        { id: 's1', projectId: 'proj-1' },
+        { id: 's2', projectId: 'proj-1' },
+      ]);
+      const deleted = store.deleteQualityScan('s1');
+      expect(deleted).toBe(true);
+      expect(store.getQualityScans('proj-1')).toHaveLength(1);
+      expect(store.getQualityScans('proj-1')[0].id).toBe('s2');
+    });
+
+    it('should return false when deleting non-existent scan', () => {
+      store.saveQualityScans('proj-1', [{ id: 's1', projectId: 'proj-1' }]);
+      expect(store.deleteQualityScan('nonexistent')).toBe(false);
+    });
+  });
 });

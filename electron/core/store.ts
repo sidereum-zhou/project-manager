@@ -106,8 +106,10 @@ export class Store {
     return this.data;
   }
 
-  save(data: StoreData): void {
-    this.data = this.normalize(data);
+  save(data?: StoreData): void {
+    if (data !== undefined) {
+      this.data = this.normalize(data);
+    }
     const tmpPath = this.filePath + '.tmp';
     fs.writeFileSync(tmpPath, JSON.stringify(this.data, null, 2), 'utf-8');
     fs.renameSync(tmpPath, this.filePath);
@@ -115,6 +117,37 @@ export class Store {
 
   getFilePath(): string {
     return this.filePath;
+  }
+
+  /** Get quality scan history for a specific project */
+  getQualityScans(projectId: string): any[] {
+    this.load();
+    return (this.data.qualityScans ?? []).filter((s: any) => s.projectId === projectId);
+  }
+
+  /** Save quality scan history for a project (replaces existing) */
+  saveQualityScans(projectId: string, scans: any[]): void {
+    this.load();
+    this.data.qualityScans = [
+      ...(this.data.qualityScans ?? []).filter((s: any) => s.projectId !== projectId),
+      ...scans,
+    ];
+    this.save();
+  }
+
+  /** Get all quality scan records across all projects */
+  getAllQualityScans(): any[] {
+    this.load();
+    return this.data.qualityScans ?? [];
+  }
+
+  /** Delete a single quality scan record by ID */
+  deleteQualityScan(scanId: string): boolean {
+    this.load();
+    const before = this.data.qualityScans?.length ?? 0;
+    this.data.qualityScans = (this.data.qualityScans ?? []).filter((s: any) => s.id !== scanId);
+    this.save();
+    return (this.data.qualityScans?.length ?? 0) < before;
   }
 
   private normalize(data: Partial<StoreData>): StoreData {
