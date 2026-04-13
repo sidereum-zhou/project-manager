@@ -685,30 +685,38 @@ export class QualityScanner {
 
   /**
    * Create a ts-morph Project and add source files.
+   * Uses tsConfigFilePath when available, otherwise walks the src/ tree manually.
+   * Never uses wildcard globs from project root (would scan node_modules → OOM).
    */
   addSourceFiles(tsConfigPath: string | null): Project {
-    const project = new Project({
-      skipAddingFilesFromTsConfig: tsConfigPath === null,
-      compilerOptions: {
-        allowJs: true,
-        noEmit: true,
-      },
-    });
+    let project: Project;
 
     if (tsConfigPath) {
       try {
-        project.addSourceFilesFromTsConfig(tsConfigPath);
+        // Let ts-morph load files from tsconfig directly
+        project = new Project({
+          tsConfigFilePath: tsConfigPath,
+          compilerOptions: {
+            allowJs: true,
+            noEmit: true,
+          },
+        });
       } catch {
-        // If loading from tsconfig fails, fall back to recursive glob
-        project.addSourceFilesAtPaths(path.join(this.projectPath, '**/*.{ts,tsx,js,jsx}'));
+        // tsconfig failed (missing deps, invalid config, etc.) — manual fallback
+        project = new Project({
+          compilerOptions: { allowJs: true, noEmit: true },
+        });
+        this.addFilesManually(project);
       }
     } else {
-      project.addSourceFilesAtPaths(path.join(this.projectPath, '**/*.{ts,tsx,js,jsx}'));
+      project = new Project({
+        compilerOptions: { allowJs: true, noEmit: true },
+      });
+      this.addFilesManually(project);
     }
 
-    // Filter out node_modules and .d.ts files
-    const sourceFiles = project.getSourceFiles();
-    for (const sf of sourceFiles) {
+    // Filter out node_modules and .d.ts files that snuck in
+    for (const sf of project.getSourceFiles()) {
       const fp = sf.getFilePath();
       if (fp.includes('node_modules') || fp.endsWith('.d.ts')) {
         project.removeSourceFile(sf);
@@ -716,6 +724,52 @@ export class QualityScanner {
     }
 
     return project;
+  }
+
+  /**
+   * Walk src/, electron/, and project root for .ts/.tsx files,
+   * skipping node_modules entirely.
+   */
+  private addFilesManually(project: Project): void {
+    const exts = ['.ts', '.tsx'];
+    const dirsToSearch = [
+      path.join(this.projectPath, 'src'),
+      path.join(this.projectPath, 'electron'),
+      this.projectPath, // root-level files like vite.config.ts
+    ];
+
+    for (const dir of dirsToSearch) {
+      if (!fs.existsSync(dir)) continue;
+      this.walkDir(dir, exts, (filePath) => {
+        try {
+          project.addSourceFileAtPath(filePath);
+        } catch {
+          // skip files that can't be parsed
+        }
+      });
+    }
+  }
+
+  /** Recursively walk a directory, calling onFile for each matching file. */
+  private walkDir(dir: string, exts: string[], onFile: (filePath: string) => void): void {
+    let entries: fs.Dirent[];
+    try {
+      entries = fs.readdirSync(dir, { withFileTypes: true });
+    } catch {
+      return;
+    }
+
+    for (const entry of entries) {
+      if (entry.name === 'node_modules' || entry.name === 'dist' || entry.name === '.git' || entry.name === 'dist-electron') {
+        continue;
+      }
+      const fullPath = path.join(dir, entry.name);
+      if (entry.isDirectory()) {
+        this.walkDir(fullPath, exts, onFile);
+      } else if (entry.isFile() && exts.some(ext => entry.name.endsWith(ext))) {
+        onFile(fullPath);
+      }
+    }
   }
 
   /**
