@@ -8,7 +8,7 @@ export const NAV_PHASES: NavPhaseGroup[] = [
     items: [
       { id: 'project-management', label: '项目管理', icon: 'folder_open', phase: 'develop', requiresProject: true, implemented: true },
       { id: 'ai-assistant', label: 'AI 助手', icon: 'smart_toy', phase: 'develop', requiresProject: true, implemented: true },
-      { id: 'quality-scan', label: '质量扫描', icon: 'shield', phase: 'develop', requiresProject: true, implemented: false },
+      { id: 'quality-scan', label: '质量扫描', icon: 'shield', phase: 'develop', requiresProject: true, implemented: true },
       { id: 'file-manager', label: '文件管理', icon: 'description', phase: 'develop', requiresProject: true, implemented: true },
       { id: 'git', label: 'Git', icon: 'commit', phase: 'develop', requiresProject: true, implemented: true },
     ],

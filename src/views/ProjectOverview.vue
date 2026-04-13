@@ -236,6 +236,12 @@
         </div>
       </n-tab-pane>
 
+      <n-tab-pane name="quality" tab="质量扫描">
+        <div class="overview-tab">
+          <QualityPage :project="project" />
+        </div>
+      </n-tab-pane>
+
       <n-tab-pane name="settings" tab="设置">
         <div class="overview-tab">
           <SettingsPage />
@@ -262,6 +268,7 @@ import ServicesPage from './ServicesPage.vue';
 import WorkspaceScenesPage from './WorkspaceScenesPage.vue';
 import ArchitecturePage from './ArchitecturePage.vue';
 import ClaudeConfigPage from './ClaudeConfigPage.vue';
+import QualityPage from './QualityPage.vue';
 
 const props = defineProps<{ project: Project }>();
 

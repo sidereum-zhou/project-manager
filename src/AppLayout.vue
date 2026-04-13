@@ -169,6 +169,7 @@ import ClaudeConfigPage from '@/views/ClaudeConfigPage.vue';
 import FileExplorer from '@/views/FileExplorer.vue';
 import GitPanel from '@/views/GitPanel.vue';
 import ServicesPage from '@/views/ServicesPage.vue';
+import QualityPage from '@/views/QualityPage.vue';
 
 const COMPONENT_MAP: Partial<Record<string, any>> = {
   'project-management': ProjectOverview,
@@ -176,6 +177,7 @@ const COMPONENT_MAP: Partial<Record<string, any>> = {
   'file-manager': FileExplorer,
   'git': GitPanel,
   'service-monitor': ServicesPage,
+  'quality-scan': QualityPage,
 };
 
 const projectStore = useProjectStore();
@@ -205,6 +207,7 @@ const currentComponentProps = computed(() => {
   switch (section) {
     case 'project-management':
     case 'ai-assistant':
+    case 'quality-scan':
     case 'service-monitor':
       return { project: projectStore.activeProject };
     case 'file-manager':
