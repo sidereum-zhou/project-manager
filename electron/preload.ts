@@ -138,6 +138,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   updateScene: (sceneId: string, updates: any) => ipcRenderer.invoke('scene:update', sceneId, updates),
   removeScene: (sceneId: string) => ipcRenderer.invoke('scene:remove', sceneId),
   analyzeArchitecture: (project: any) => ipcRenderer.invoke('architecture:analyze', project),
+  aiAnalyzeArchitecture: (projectId: string, analysis: any) =>
+    ipcRenderer.invoke('architecture:aiAnalyze', projectId, analysis),
+  aiArchitectureHistory: (projectId: string) =>
+    ipcRenderer.invoke('architecture:aiHistory', projectId),
+  aiArchitectureDetail: (analysisId: string) =>
+    ipcRenderer.invoke('architecture:aiDetail', analysisId),
 
   // Quality Scanner
   scanQuality: (projectId: string, projectPath: string) =>

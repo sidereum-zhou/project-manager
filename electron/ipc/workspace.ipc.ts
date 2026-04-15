@@ -1,6 +1,7 @@
 import { ipcMain } from 'electron';
 import { v4 as uuidv4 } from 'uuid';
 import { analyzeArchitecture } from '../core/architecture-analyzer';
+import { aiAnalyzeArchitecture, listAiAnalysisHistory, getAiAnalysisDetail } from '../core/architecture-ai-analyzer';
 import type { Store, StoreWorkspaceScene } from '../core/store';
 
 export function registerWorkspaceIpc(store: Store): void {
@@ -62,5 +63,17 @@ export function registerWorkspaceIpc(store: Store): void {
     subProjects?: string[];
   }) => {
     return analyzeArchitecture(project);
+  });
+
+  ipcMain.handle('architecture:aiAnalyze', async (_event, projectId: string, analysis: any) => {
+    return aiAnalyzeArchitecture(store, projectId, analysis);
+  });
+
+  ipcMain.handle('architecture:aiHistory', async (_event, projectId: string) => {
+    return listAiAnalysisHistory(store, projectId);
+  });
+
+  ipcMain.handle('architecture:aiDetail', async (_event, analysisId: string) => {
+    return getAiAnalysisDetail(analysisId);
   });
 }

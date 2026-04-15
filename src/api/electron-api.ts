@@ -1,5 +1,8 @@
 import type {
   ArchitectureAnalysis,
+  ArchitectureOverlay,
+  AiArchitectureAnalysis,
+  AiArchitectureAnalysisRecord,
   ProcessStatus,
   Project,
   ProjectService,
@@ -289,6 +292,18 @@ export const electronApi = {
 
   async analyzeArchitecture(project: Pick<Project, 'name' | 'path' | 'type' | 'packageManager' | 'subProjects'>): Promise<ArchitectureAnalysis> {
     return api.analyzeArchitecture(project);
+  },
+
+  async aiAnalyzeArchitecture(projectId: string, analysis: ArchitectureAnalysis): Promise<AiArchitectureAnalysis> {
+    return api.aiAnalyzeArchitecture(projectId, analysis);
+  },
+
+  async aiArchitectureHistory(projectId: string): Promise<AiArchitectureAnalysisRecord[]> {
+    return api.aiArchitectureHistory(projectId);
+  },
+
+  async aiArchitectureDetail(analysisId: string): Promise<AiArchitectureAnalysis | null> {
+    return api.aiArchitectureDetail(analysisId);
   },
 
   async getSystemInfo(): Promise<{
