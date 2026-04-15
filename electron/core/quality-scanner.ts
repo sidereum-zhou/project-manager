@@ -29,7 +29,6 @@ const COMPLEXITY_BRANCH_KINDS = new Set([
   SyntaxKind.WhileStatement,
   SyntaxKind.DoStatement,
   SyntaxKind.CaseClause,
-  SyntaxKind.CatchClause,
   SyntaxKind.ConditionalExpression,   // ternary  a ? b : c
   SyntaxKind.BinaryExpression,        // &&  ||  ??
 ]);
@@ -239,12 +238,7 @@ export class QualityScanner {
           complexity++;
         }
       } else if (COMPLEXITY_BRANCH_KINDS.has(kind)) {
-        // For case clauses only count once (skip the default clause)
-        if (kind === SyntaxKind.CaseClause) {
-          complexity++;
-        } else if (kind !== SyntaxKind.CatchClause || true) {
-          complexity++;
-        }
+        complexity++;
       }
     });
 
