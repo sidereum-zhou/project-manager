@@ -6,6 +6,10 @@
         <span class="architecture-legend-item workspace">Workspace</span>
         <span class="architecture-legend-item dependency">Runtime</span>
         <span class="architecture-legend-item tooling">Tooling</span>
+        <span class="architecture-legend-separator">|</span>
+        <span class="architecture-legend-item ai-circular">循环依赖</span>
+        <span class="architecture-legend-item ai-violation">层次违规</span>
+        <span class="architecture-legend-item ai-deep">过深链路</span>
       </div>
       <div class="architecture-graph-controls">
         <span class="architecture-zoom-label">{{ Math.round(zoom * 100) }}%</span>
@@ -34,14 +38,14 @@
             :key="`${edge.source}-${edge.target}`"
             :d="edge.path"
             class="architecture-edge"
-            :class="edge.kind"
+            :class="[edge.kind, edgeHighlightClass(`${edge.source}-${edge.target}`)]"
           />
 
           <g
             v-for="node in layout.nodes"
             :key="node.id"
             class="architecture-node"
-            :class="node.kind"
+            :class="[node.kind, nodeHighlightClass(node.id)]"
             :transform="`translate(${node.x}, ${node.y})`"
           >
             <rect :width="node.width" :height="node.height" rx="22" />
@@ -61,13 +65,15 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, ref, watch } from 'vue';
 import { NButton } from 'naive-ui';
-import type { ArchitectureAnalysis, ArchitectureNode } from '@/types/project';
+import type { ArchitectureAnalysis, ArchitectureNode, ArchitectureOverlay } from '@/types/project';
 
 const props = withDefaults(defineProps<{
   analysis: ArchitectureAnalysis;
   expanded?: boolean;
+  overlay?: ArchitectureOverlay | null;
 }>(), {
   expanded: false,
+  overlay: null,
 });
 
 const viewportRef = ref<HTMLElement | null>(null);
@@ -191,6 +197,22 @@ function kindLabel(kind: ArchitectureNode['kind']): string {
     default:
       return 'Service';
   }
+}
+
+function nodeHighlightClass(nodeId: string): string {
+  const type = props.overlay?.highlightedNodes?.[nodeId];
+  if (type === 'circular') return 'ai-highlight-circular';
+  if (type === 'layerViolation') return 'ai-highlight-violation';
+  if (type === 'deepChain') return 'ai-highlight-deep';
+  return '';
+}
+
+function edgeHighlightClass(edgeKey: string): string {
+  const type = props.overlay?.highlightedEdges?.[edgeKey];
+  if (type === 'circular') return 'ai-highlight-circular';
+  if (type === 'layerViolation') return 'ai-highlight-violation';
+  if (type === 'deepChain') return 'ai-highlight-deep';
+  return '';
 }
 </script>
 
@@ -349,5 +371,69 @@ function kindLabel(kind: ArchitectureNode['kind']): string {
   line-height: 1.45;
   color: var(--pm-text-secondary);
   word-break: break-word;
+}
+
+/* AI highlight legend items */
+.architecture-legend-separator {
+  color: var(--pm-text-tertiary);
+  font-size: 11px;
+  user-select: none;
+}
+
+.architecture-legend-item.ai-circular {
+  background: rgba(159, 64, 61, 0.14);
+  border-color: rgba(159, 64, 61, 0.22);
+  color: var(--pm-error);
+}
+
+.architecture-legend-item.ai-violation {
+  background: rgba(217, 119, 6, 0.14);
+  border-color: rgba(217, 119, 6, 0.22);
+  color: var(--pm-warning);
+}
+
+.architecture-legend-item.ai-deep {
+  background: rgba(180, 83, 9, 0.14);
+  border-color: rgba(180, 83, 9, 0.22);
+  color: #b45309;
+}
+
+/* SVG node highlights */
+.architecture-node.ai-highlight-circular rect {
+  stroke: var(--pm-error) !important;
+  stroke-width: 3px;
+  animation: ai-pulse 1.5s ease-in-out 3;
+}
+
+.architecture-node.ai-highlight-violation rect {
+  stroke: var(--pm-warning) !important;
+  stroke-width: 2.5px;
+}
+
+.architecture-node.ai-highlight-deep rect {
+  stroke: #b45309 !important;
+  stroke-width: 2px;
+}
+
+/* SVG edge highlights */
+.architecture-edge.ai-highlight-circular {
+  stroke: rgba(159, 64, 61, 0.8) !important;
+  stroke-width: 3px;
+  animation: ai-pulse 1.5s ease-in-out 3;
+}
+
+.architecture-edge.ai-highlight-violation {
+  stroke: rgba(217, 119, 6, 0.8) !important;
+  stroke-width: 2.5px;
+}
+
+.architecture-edge.ai-highlight-deep {
+  stroke: rgba(180, 83, 9, 0.6) !important;
+  stroke-width: 2px;
+}
+
+@keyframes ai-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
 }
 </style>
