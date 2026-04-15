@@ -115,6 +115,54 @@ export interface ArchitectureAnalysis {
   internalDependencyCount: number;
 }
 
+/** AI architecture analysis issue types */
+export type ArchitectureIssueType = 'circular' | 'layerViolation' | 'deepChain';
+export type ArchitectureIssueSeverity = 'warning' | 'error';
+export type SuggestionEffort = 'low' | 'medium' | 'high';
+
+/** A single issue found during AI analysis */
+export interface ArchitectureIssue {
+  type: ArchitectureIssueType;
+  nodes: string[];
+  path?: string[];
+  severity: ArchitectureIssueSeverity;
+  description: string;
+}
+
+/** An AI-generated improvement suggestion */
+export interface ArchitectureSuggestion {
+  title: string;
+  description: string;
+  impact: string[];
+  effort: SuggestionEffort;
+}
+
+/** Full AI architecture analysis result */
+export interface AiArchitectureAnalysis {
+  id: string;
+  projectId: string;
+  timestamp: string;
+  issues: ArchitectureIssue[];
+  suggestions: ArchitectureSuggestion[];
+  score: number;
+  summary: string;
+}
+
+/** Summary record persisted in Store (full data in separate file) */
+export interface AiArchitectureAnalysisRecord {
+  id: string;
+  projectId: string;
+  timestamp: string;
+  score: number;
+  issueCount: number;
+}
+
+/** Overlay data for SVG graph highlighting */
+export interface ArchitectureOverlay {
+  highlightedNodes: Record<string, ArchitectureIssueType>;
+  highlightedEdges: Record<string, ArchitectureIssueType>;
+}
+
 export interface StoreData {
   projects: Project[];
   workspaceScenes: WorkspaceScene[];
