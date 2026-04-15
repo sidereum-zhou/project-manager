@@ -334,7 +334,7 @@ onMounted(() => {
 }
 
 .app-sidebar-phase-icon {
-  font-variation-settings: 'FILL' 0, 'wght' 300, 'opsz' 20;
+  font-weight: 300;
   font-size: 1.1rem;
 }
 
@@ -388,7 +388,7 @@ onMounted(() => {
 }
 
 .app-sidebar-item-icon {
-  font-variation-settings: 'FILL' 0, 'wght' 300, 'opsz' 20;
+  font-weight: 300;
   font-size: 1.1rem;
 }
 
@@ -625,7 +625,7 @@ onMounted(() => {
 }
 
 .app-content-empty-icon {
-  font-variation-settings: 'FILL' 0, 'wght' 300, 'opsz' 48;
+  font-weight: 300;
   font-size: 3rem;
   color: var(--pm-text-tertiary);
 }

@@ -46,7 +46,14 @@ export function registerQualityIpc(store: Store): void {
       if (scans.length > 20) {
         scans.length = 20;
       }
-      store.saveQualityScans(projectId, scans);
+      try {
+        store.saveQualityScans(projectId, scans);
+        console.log(`[quality:scan] Scan result saved (${scans.length} records for project ${projectId})`);
+      } catch (saveErr: any) {
+        console.error('[quality:scan] Failed to save scan result:', saveErr);
+        // Still return the result so the user can see it, but warn that persistence failed
+        return { ...result, _saveError: `保存扫描记录失败: ${saveErr.message}` };
+      }
       return result;
     } catch (e: any) {
       console.error('[quality:scan] Scan failed:', e);

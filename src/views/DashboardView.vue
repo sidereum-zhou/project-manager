@@ -375,7 +375,7 @@ onUnmounted(() => {
 }
 .pm-btn-secondary:hover { background: var(--pm-surface-container-high); }
 .pm-btn-secondary .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 18;
+  font-weight: 400;
   font-size: 1rem;
 }
 
@@ -416,7 +416,7 @@ onUnmounted(() => {
   place-items: center;
 }
 .bento-card-icon .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  font-weight: 400;
   font-size: 1.1rem;
 }
 .bento-card-icon--primary {
@@ -722,7 +722,7 @@ onUnmounted(() => {
   color: var(--pm-text-tertiary);
 }
 .dashboard-footer-icon .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+  font-weight: 300;
 }
 .dashboard-footer-note {
   font-size: 0.625rem;

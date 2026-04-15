@@ -12,6 +12,7 @@
     "test": "vitest run",
     "test:store": "vitest run electron/core/store.test.ts",
     "test:detectors": "vitest run electron/detectors/detectors.test.ts",
+    "test:quality": "vitest run electron/core/quality-scanner.test.ts",
     "test:watch": "vitest",
     "check:quick": "npm run typecheck && npm run test",
     "check": "npm run test && npm run build",
@@ -21,6 +22,7 @@
   "dependencies": {
     "@anthropic-ai/claude-agent-sdk": "^0.2.104",
     "@anthropic-ai/claude-code": "^2.1.104",
+    "@fontsource/material-symbols-outlined": "^5.2.41",
     "@vicons/ionicons5": "^0.12.0",
     "naive-ui": "^2.38.0",
     "pinia": "^2.1.0",

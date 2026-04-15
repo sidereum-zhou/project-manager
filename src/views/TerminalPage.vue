@@ -349,7 +349,7 @@ function normalizeFontFamily(fontName: string | undefined): string {
   background: rgba(51, 65, 85, 0.3);
 }
 .terminal-header-btn .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 18;
+  font-weight: 400;
   font-size: 1.125rem;
 }
 
@@ -419,7 +419,7 @@ function normalizeFontFamily(fontName: string | undefined): string {
   cursor: default;
 }
 .terminal-context-item .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 18;
+  font-weight: 400;
   font-size: 1rem;
 }
 .terminal-context-sep {

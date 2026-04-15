@@ -212,5 +212,22 @@ describe('Store', () => {
       store.saveQualityScans('proj-1', [{ id: 's1', projectId: 'proj-1' }]);
       expect(store.deleteQualityScan('nonexistent')).toBe(false);
     });
+
+    it('should preserve quality scans when project data is saved via save(data)', () => {
+      store.saveQualityScans('proj-1', [{ id: 's1', projectId: 'proj-1', score: 85 }]);
+      // Simulate project:update IPC: load → modify → save(data)
+      const data = store.load();
+      data.projects.push({ id: 'proj-2', name: 'other', path: '/other', type: 'nodejs', addedAt: '2026-04-14T00:00:00Z' });
+      store.save(data);
+      expect(store.getQualityScans('proj-1')).toHaveLength(1);
+      expect(store.getQualityScans('proj-1')[0].id).toBe('s1');
+    });
+
+    it('should preserve quality scans after reload from disk', () => {
+      store.saveQualityScans('proj-1', [{ id: 's1', projectId: 'proj-1', score: 85 }]);
+      // Reload store from the same file (simulates app restart)
+      const store2 = new Store(store.getFilePath());
+      expect(store2.getQualityScans('proj-1')).toHaveLength(1);
+    });
   });
 });

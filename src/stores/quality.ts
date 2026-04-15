@@ -60,21 +60,27 @@ export const useQualityStore = defineStore('quality', () => {
     error.value = null;
     selectedIssueId.value = null;
 
-    try {
-      const unlisten = electronApi.onQualityScanProgress((p) => {
-        progress.value = p;
-      });
+    const unlisten = electronApi.onQualityScanProgress((p) => {
+      progress.value = p;
+    });
 
-      const result = await electronApi.scanQuality(projectId, projectPath);
+    try {
+      const result: any = await electronApi.scanQuality(projectId, projectPath);
       currentResult.value = result;
       progress.value = null;
 
+      // Check for save warning from IPC handler
+      if (result._saveError) {
+        error.value = result._saveError;
+        delete result._saveError;
+      }
+
       await fetchHistory(projectId);
-      unlisten();
     } catch (e: any) {
       error.value = e.message || '扫描失败';
     } finally {
       scanning.value = false;
+      unlisten();
     }
   }
 

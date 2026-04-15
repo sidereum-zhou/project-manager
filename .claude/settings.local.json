@@ -20,7 +20,14 @@
       "Bash(git commit:*)",
       "Bash(echo \"exit: $?\")",
       "Bash(node -e \"try{require.resolve\\('ts-morph'\\);console.log\\('ts-morph found'\\)}catch{console.log\\('ts-morph not found'\\)}\")",
-      "Bash(node -e \"try{require.resolve\\('typescript'\\);console.log\\('typescript found'\\)}catch{console.log\\('typescript not found'\\)}\")"
+      "Bash(node -e \"try{require.resolve\\('typescript'\\);console.log\\('typescript found'\\)}catch{console.log\\('typescript not found'\\)}\")",
+      "Bash(curl -L -o MaterialSymbolsOutlined.woff2 \"https://fonts.gstatic.com/s/materialsymbolsoutlined/v202/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2\")",
+      "Bash(npm search:*)",
+      "Bash(node _debug_alias.js)",
+      "Bash(node _debug_import.js)",
+      "Bash(node _debug_path.js)",
+      "Bash(node _debug_fp.js)",
+      "Bash(node _debug_scanner.js)"
     ]
   }
 }

@@ -112,7 +112,18 @@ export class Store {
     }
     const tmpPath = this.filePath + '.tmp';
     fs.writeFileSync(tmpPath, JSON.stringify(this.data, null, 2), 'utf-8');
-    fs.renameSync(tmpPath, this.filePath);
+    try {
+      fs.renameSync(tmpPath, this.filePath);
+    } catch (renameErr: any) {
+      // On Windows, rename can fail with EPERM if the target file is locked
+      // (e.g. by antivirus). Fall back to copy + unlink.
+      try {
+        fs.copyFileSync(tmpPath, this.filePath);
+        fs.unlinkSync(tmpPath);
+      } catch {
+        throw renameErr;
+      }
+    }
   }
 
   getFilePath(): string {

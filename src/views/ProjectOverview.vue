@@ -628,7 +628,7 @@ async function applySceneServices(scene: WorkspaceScene): Promise<void> {
   font-size: 1.1rem;
 }
 .bento-card-icon .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  font-weight: 400;
   font-size: 1.1rem;
 }
 .bento-card-icon--primary {
@@ -734,7 +734,7 @@ async function applySceneServices(scene: WorkspaceScene): Promise<void> {
   flex-shrink: 0;
 }
 .activity-item-icon .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 20;
+  font-weight: 400;
   font-size: 1rem;
   color: var(--pm-primary);
 }
@@ -882,7 +882,7 @@ async function applySceneServices(scene: WorkspaceScene): Promise<void> {
   color: var(--pm-text-tertiary);
 }
 .overview-footer-icon .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 20;
+  font-weight: 300;
 }
 .overview-footer-note {
   font-size: 0.625rem;
@@ -986,7 +986,7 @@ async function applySceneServices(scene: WorkspaceScene): Promise<void> {
   background: var(--pm-primary-dim);
 }
 .pm-btn-primary .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 18;
+  font-weight: 400;
   font-size: 1rem;
 }
 
@@ -1008,7 +1008,7 @@ async function applySceneServices(scene: WorkspaceScene): Promise<void> {
   background: var(--pm-surface-container-high);
 }
 .pm-btn-secondary .material-symbols-outlined {
-  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 18;
+  font-weight: 400;
   font-size: 1rem;
 }
 </style>
