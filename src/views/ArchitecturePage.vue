@@ -295,9 +295,27 @@ async function selectHistory(analysisId: string | null): Promise<void> {
     const detail = await electronApi.aiArchitectureDetail(analysisId);
     if (detail) {
       aiResult.value = detail;
+    } else {
+      aiResult.value = {
+        id: analysisId,
+        projectId: props.project.id,
+        timestamp: new Date().toISOString(),
+        issues: [],
+        suggestions: [],
+        score: 0,
+        summary: '历史分析数据未找到。',
+      };
     }
-  } catch {
-    // ignore
+  } catch (err: any) {
+    aiResult.value = {
+      id: analysisId,
+      projectId: props.project.id,
+      timestamp: new Date().toISOString(),
+      issues: [],
+      suggestions: [],
+      score: 0,
+      summary: `加载历史记录失败: ${err.message || String(err)}`,
+    };
   }
 }
 

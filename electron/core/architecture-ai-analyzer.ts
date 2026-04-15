@@ -264,12 +264,20 @@ export async function aiAnalyzeArchitecture(
     }
 
     const client = new Anthropic({ apiKey });
-    const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
-      max_tokens: 4096,
-      messages: [{ role: 'user', content: serialized }],
-      system: SYSTEM_PROMPT,
-    });
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 60_000);
+    let response;
+    try {
+      response = await client.messages.create({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        messages: [{ role: 'user', content: serialized }],
+        system: SYSTEM_PROMPT,
+        abortSignal: controller.signal,
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
 
     rawResponse = response.content
       .filter((block: any) => block.type === 'text')
