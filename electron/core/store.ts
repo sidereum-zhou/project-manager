@@ -69,6 +69,13 @@ export interface StoreData {
     defaultTerminalFontSize: number;
   };
   qualityScans: any[];
+  aiArchitectureAnalyses: Array<{
+    id: string;
+    projectId: string;
+    timestamp: string;
+    score: number;
+    issueCount: number;
+  }>;
 }
 
 const DEFAULT_DATA: StoreData = {
@@ -79,6 +86,7 @@ const DEFAULT_DATA: StoreData = {
     defaultTerminalFontSize: 14,
   },
   qualityScans: [],
+  aiArchitectureAnalyses: [],
 };
 
 export class Store {
@@ -161,6 +169,49 @@ export class Store {
     return (this.data.qualityScans?.length ?? 0) < before;
   }
 
+  /** Get AI architecture analysis history for a specific project */
+  getAiArchitectureAnalyses(projectId: string): Array<{ id: string; projectId: string; timestamp: string; score: number; issueCount: number }> {
+    this.load();
+    return (this.data.aiArchitectureAnalyses ?? [])
+      .filter(r => r.projectId === projectId)
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  }
+
+  /** Save AI architecture analysis record (upsert + trim to 20 per project) */
+  saveAiArchitectureAnalysis(record: { id: string; projectId: string; timestamp: string; score: number; issueCount: number }): void {
+    this.load();
+    const existing = this.data.aiArchitectureAnalyses.findIndex(r => r.id === record.id);
+    if (existing >= 0) {
+      this.data.aiArchitectureAnalyses[existing] = record;
+    } else {
+      this.data.aiArchitectureAnalyses.push(record);
+    }
+    // Trim to 20 per project
+    const projectRecords = this.data.aiArchitectureAnalyses
+      .filter(r => r.projectId === record.projectId)
+      .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    if (projectRecords.length > 20) {
+      const removeIds = new Set(projectRecords.slice(0, projectRecords.length - 20).map(r => r.id));
+      this.data.aiArchitectureAnalyses = this.data.aiArchitectureAnalyses.filter(r => !removeIds.has(r.id));
+    }
+    this.save();
+  }
+
+  /** Get a single AI architecture analysis record by ID */
+  getAiArchitectureAnalysisRecord(analysisId: string): { id: string; projectId: string; timestamp: string; score: number; issueCount: number } | null {
+    this.load();
+    return this.data.aiArchitectureAnalyses.find(r => r.id === analysisId) ?? null;
+  }
+
+  /** Delete an AI architecture analysis record by ID */
+  deleteAiArchitectureAnalysis(analysisId: string): boolean {
+    this.load();
+    const before = this.data.aiArchitectureAnalyses?.length ?? 0;
+    this.data.aiArchitectureAnalyses = (this.data.aiArchitectureAnalyses ?? []).filter(r => r.id !== analysisId);
+    this.save();
+    return (this.data.aiArchitectureAnalyses?.length ?? 0) < before;
+  }
+
   private normalize(data: Partial<StoreData>): StoreData {
     return {
       projects: Array.isArray(data.projects)
@@ -186,6 +237,7 @@ export class Store {
         ...(data.settings || {}),
       },
       qualityScans: Array.isArray(data.qualityScans) ? data.qualityScans : [],
+      aiArchitectureAnalyses: Array.isArray(data.aiArchitectureAnalyses) ? data.aiArchitectureAnalyses : [],
     };
   }
 }
