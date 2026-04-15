@@ -27,7 +27,11 @@
       "Bash(node _debug_import.js)",
       "Bash(node _debug_path.js)",
       "Bash(node _debug_fp.js)",
-      "Bash(node _debug_scanner.js)"
+      "Bash(node _debug_scanner.js)",
+      "Bash(node -e \"require.resolve\\('uuid'\\)\")",
+      "Bash(node -e \"require.resolve\\('@anthropic-ai/sdk'\\)\")",
+      "Bash(TaskUpdate taskId=8:*)",
+      "Bash(git stash:*)"
     ]
   }
 }
