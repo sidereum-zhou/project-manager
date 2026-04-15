@@ -272,8 +272,8 @@ export async function aiAnalyzeArchitecture(
     });
 
     rawResponse = response.content
-      .filter((block: { type: string }) => block.type === 'text')
-      .map((block: { text: string }) => block.text)
+      .filter((block: any) => block.type === 'text')
+      .map((block: any) => block.text)
       .join('\n');
   } catch (err: any) {
     const fallback: AiArchitectureAnalysis = {
