@@ -30,7 +30,7 @@ const COMPLEXITY_BRANCH_KINDS = new Set([
   SyntaxKind.DoStatement,
   SyntaxKind.CaseClause,
   SyntaxKind.ConditionalExpression,   // ternary  a ? b : c
-  SyntaxKind.BinaryExpression,        // &&  ||  ??
+  // Note: BinaryExpression (&&, ||, ??) is handled separately with chain-aware logic
 ]);
 
 /** Binary operator tokens that contribute a branch. */
@@ -63,6 +63,7 @@ export class QualityScanner {
   private onProgress: (progress: QualityScanProgress) => void;
   private cancelled = false;
   private tsProject: Project | null = null;
+  private pathAliases = new Map<string, string>();
   private scannedFiles = 0;
   private skippedFiles = 0;
   private startTime = 0;
@@ -101,6 +102,8 @@ export class QualityScanner {
     this.emitProgress('init', 0.5, 'Finding tsconfig.json...');
     const tsConfigPath = this.findTsConfig();
     console.log(`[quality-scanner] projectPath=${this.projectPath}, tsConfig=${tsConfigPath}`);
+
+    this.loadPathAliases(tsConfigPath);
 
     this.emitProgress('init', 1, 'Creating ts-morph project...');
     this.tsProject = this.addSourceFiles(tsConfigPath);
@@ -233,9 +236,13 @@ export class QualityScanner {
     fn.forEachDescendant((node) => {
       const kind = node.getKind();
       if (kind === SyntaxKind.BinaryExpression) {
-        const op = (node as any).operatorToken?.getKind?.();
+        // Use compilerNode for operator detection (ts-morph's operatorToken may be undefined)
+        const op = (node as any).compilerNode?.operatorToken?.kind;
         if (op !== undefined && COMPLEXITY_BRANCH_OPERATORS.has(op)) {
-          complexity++;
+          // Only count the root of a logical chain, not nested children
+          if (this.isLogicalChainRoot(node as any)) {
+            complexity++;
+          }
         }
       } else if (COMPLEXITY_BRANCH_KINDS.has(kind)) {
         complexity++;
@@ -243,6 +250,15 @@ export class QualityScanner {
     });
 
     return complexity;
+  }
+
+  /** Check if this BinaryExpression is the root of a logical operator chain. */
+  private isLogicalChainRoot(node: any): boolean {
+    const parent = node.getParent?.();
+    if (!parent) return true;
+    if (parent.getKind() !== SyntaxKind.BinaryExpression) return true;
+    const parentOp = parent.compilerNode?.operatorToken?.kind;
+    return parentOp === undefined || !COMPLEXITY_BRANCH_OPERATORS.has(parentOp);
   }
 
   // -----------------------------------------------------------------------
@@ -416,7 +432,7 @@ export class QualityScanner {
         for (const named of namedExports) {
           const name = named.getName();
           const key = `${this.relativePath(filePath)}:${name}`;
-          if (!importedSymbols.has(key)) {
+          if (!importedSymbols.has(key) && !this.isUsedInSameFile(sf, name)) {
             const { line, column } = this.getStartLineColumnFromNode(named as any);
             issues.push({
               id: this.nextIssueId(),
@@ -445,7 +461,7 @@ export class QualityScanner {
         if ((node as any).isDefaultExport?.()) return;
 
         const key = `${this.relativePath(filePath)}:${name}`;
-        if (!importedSymbols.has(key)) {
+        if (!importedSymbols.has(key) && !this.isUsedInSameFile(sf, name)) {
           const { line, column } = this.getStartLineColumnFromNode(node);
           issues.push({
             id: this.nextIssueId(),
@@ -464,6 +480,46 @@ export class QualityScanner {
     }
 
     return issues;
+  }
+
+  /**
+   * Check if a symbol name is referenced anywhere in the source file
+   * outside of its own declaration.
+   */
+  private isUsedInSameFile(sf: SourceFile, symbolName: string): boolean {
+    let found = false;
+    sf.forEachDescendant((node) => {
+      if (found) return;
+      const kind = node.getKind();
+
+      // Check identifier references (not declarations)
+      if (kind === SyntaxKind.Identifier) {
+        const text = (node as any).getText?.();
+        if (text !== symbolName) return;
+
+        // Skip if this identifier is part of the declaration itself
+        const parent = node.getParent?.();
+        if (!parent) return;
+        const parentKind = parent.getKind();
+
+        // Skip: the export declaration name, import specifier names, etc.
+        const isOwnDeclaration =
+          parentKind === SyntaxKind.InterfaceDeclaration ||
+          parentKind === SyntaxKind.TypeAliasDeclaration ||
+          parentKind === SyntaxKind.FunctionDeclaration ||
+          parentKind === SyntaxKind.ClassDeclaration ||
+          parentKind === SyntaxKind.EnumDeclaration ||
+          parentKind === SyntaxKind.VariableDeclaration ||
+          parentKind === SyntaxKind.ExportSpecifier ||
+          parentKind === SyntaxKind.ImportSpecifier ||
+          parentKind === SyntaxKind.PropertyDeclaration;
+
+        if (!isOwnDeclaration) {
+          found = true;
+        }
+      }
+    });
+    return found;
   }
 
   private countNonReExportStatements(sf: SourceFile): number {
@@ -694,6 +750,25 @@ export class QualityScanner {
     return crypto.createHash('sha256').update(input).digest('hex');
   }
 
+  /** Load path aliases from tsconfig.json compilerOptions.paths. */
+  private loadPathAliases(tsConfigPath: string | null): void {
+    if (!tsConfigPath) return;
+    try {
+      const tsconfig = JSON.parse(fs.readFileSync(tsConfigPath, 'utf-8'));
+      const paths: Record<string, string[]> | undefined = tsconfig.compilerOptions?.paths;
+      if (!paths) return;
+
+      for (const [pattern, targets] of Object.entries(paths)) {
+        if (targets.length === 0) continue;
+        const prefix = pattern.replace('/*', '');
+        const replacement = (targets[0] || '').replace('/*', '');
+        this.pathAliases.set(prefix, replacement);
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+
   /**
    * Find tsconfig.json: exact match first, then tsconfig.*.json, then defaults.
    */
@@ -829,7 +904,29 @@ export class QualityScanner {
       return null;
     }
 
-    // Non-relative import: try to resolve from node_modules or project root
+    // 2. Try path alias resolution (e.g., "@/types/quality" → "src/types/quality")
+    for (const [aliasPrefix, replacement] of this.pathAliases) {
+      if (moduleSpecifier.startsWith(aliasPrefix + '/') || moduleSpecifier === aliasPrefix) {
+        const remainder = moduleSpecifier.slice(aliasPrefix.length);
+        const resolved = path.join(this.projectPath, replacement + remainder);
+
+        const extensions = ['.ts', '.tsx', '.js', '.jsx', '/index.ts', '/index.tsx', '/index.js', '/index.jsx'];
+        for (const ext of extensions) {
+          const tryPath = resolved + ext;
+          if (fs.existsSync(tryPath)) {
+            return this.relativePath(tryPath);
+          }
+        }
+
+        if (fs.existsSync(resolved)) {
+          return this.relativePath(resolved);
+        }
+
+        return null;
+      }
+    }
+
+    // 3. Try node_modules resolution
     // Check if it's a path alias or workspace package
     const packageJsonPath = path.join(this.projectPath, 'node_modules', moduleSpecifier, 'package.json');
     if (fs.existsSync(packageJsonPath)) {
