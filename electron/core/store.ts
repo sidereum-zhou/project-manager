@@ -1,6 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 
+import type { AiProviderConfig } from '../../src/types/project';
+
 type ProjectTab = 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'claude' | 'settings';
 type ServiceEnvMap = Record<string, string>;
 
@@ -67,6 +69,7 @@ export interface StoreData {
   settings: {
     defaultTerminalFont: string;
     defaultTerminalFontSize: number;
+    aiProvider?: AiProviderConfig | null;
   };
   qualityScans: any[];
   aiArchitectureAnalyses: Array<{
@@ -84,6 +87,7 @@ const DEFAULT_DATA: StoreData = {
   settings: {
     defaultTerminalFont: 'Consolas',
     defaultTerminalFontSize: 14,
+    aiProvider: null,
   },
   qualityScans: [],
   aiArchitectureAnalyses: [],
