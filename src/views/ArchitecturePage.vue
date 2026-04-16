@@ -14,6 +14,7 @@
           size="small"
           quaternary
           :loading="aiLoading"
+          :disabled="!analysis && !loading"
           @click="runAiAnalysis"
         >
           AI 分析
@@ -194,7 +195,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onMounted, ref, toRaw, watch } from 'vue';
 import { NButton, NModal, NSelect, NTag } from 'naive-ui';
 import { electronApi } from '@/api/electron-api';
 import type {
@@ -247,6 +248,9 @@ async function loadAnalysis(): Promise<void> {
       packageManager: props.project.packageManager,
       subProjects: props.project.subProjects,
     });
+  } catch (err: any) {
+    console.error('[ArchitecturePage] loadAnalysis failed:', err);
+    analysis.value = null;
   } finally {
     loading.value = false;
   }
@@ -261,15 +265,23 @@ async function loadAiHistory(): Promise<void> {
 }
 
 async function runAiAnalysis(): Promise<void> {
-  if (!analysis.value || aiLoading.value) return;
+  if (aiLoading.value) return;
+
+  // Ensure analysis data exists before running AI analysis
+  if (!analysis.value) {
+    await loadAnalysis();
+    if (!analysis.value) return;
+  }
+
   aiLoading.value = true;
   selectedHistoryId.value = null;
   focusedIssueIndex.value = null;
   try {
-    const result = await electronApi.aiAnalyzeArchitecture(props.project.id, analysis.value);
+    const result = await electronApi.aiAnalyzeArchitecture(props.project.id, toRaw(analysis.value!));
     aiResult.value = result;
     await loadAiHistory();
   } catch (err: any) {
+    console.error('[ArchitecturePage] AI analysis failed:', err);
     aiResult.value = {
       id: '',
       projectId: props.project.id,

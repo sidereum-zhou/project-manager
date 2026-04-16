@@ -28,7 +28,7 @@ export const NAV_PHASES: NavPhaseGroup[] = [
     label: '运维',
     icon: 'monitoring',
     items: [
-      { id: 'service-monitor', label: '服务监控', icon: 'activity', phase: 'ops', requiresProject: true, implemented: true },
+      { id: 'service-monitor', label: '服务监控', icon: 'monitoring', phase: 'ops', requiresProject: true, implemented: true },
       { id: 'log-center', label: '日志中心', icon: 'receipt_long', phase: 'ops', requiresProject: false, implemented: false },
       { id: 'alerts', label: '告警', icon: 'notifications_active', phase: 'ops', requiresProject: false, implemented: false },
     ],
