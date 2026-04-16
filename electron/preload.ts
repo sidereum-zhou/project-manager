@@ -17,6 +17,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Settings
   getSettings: () => ipcRenderer.invoke('settings:get'),
   updateSettings: (settings: any) => ipcRenderer.invoke('settings:update', settings),
+  getAiProvider: () => ipcRenderer.invoke('settings:getAiProvider'),
+  updateAiProvider: (data: { provider: string; token: string }) =>
+    ipcRenderer.invoke('settings:updateAiProvider', data),
+  clearAiProvider: () => ipcRenderer.invoke('settings:clearAiProvider'),
 
   // Process
   startProcess: (projectId: string, cwd: string, cmd: string[]) =>
