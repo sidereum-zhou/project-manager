@@ -89,7 +89,7 @@ export function registerQualityIpc(store: Store): void {
   });
 
   ipcMain.handle('quality:analyzeIssue', async (_event, request: QualityAnalyzeRequest) => {
-    return analyzeWithAI(request);
+    return analyzeWithAI(store, request);
   });
 
   ipcMain.handle('quality:cancel', async () => {
@@ -121,7 +121,7 @@ function compareScanResults(baseline: QualityScanResult, compare: QualityScanRes
   };
 }
 
-async function analyzeWithAI(request: QualityAnalyzeRequest): Promise<QualityAnalyzeResult> {
+async function analyzeWithAI(store: Store, request: QualityAnalyzeRequest): Promise<QualityAnalyzeResult> {
   const categoryLabels: Record<string, string> = {
     complexity: '代码复杂度',
     duplicate: '重复代码',
@@ -151,18 +151,22 @@ async function analyzeWithAI(request: QualityAnalyzeRequest): Promise<QualityAna
 
   try {
     const { Anthropic } = await import('@anthropic-ai/sdk');
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
+    const aiConfig = store.load().settings.aiProvider;
+    if (!aiConfig?.token) {
       return {
         issueId: request.issueId,
-        analysis: '未配置 Claude API Key。请在环境变量中设置 `ANTHROPIC_API_KEY`。',
+        analysis: '未配置 AI 模型。请在设置页面中配置 AI 模型厂家和 API Token。',
         analyzedAt: new Date().toISOString(),
       };
     }
 
-    const client = new Anthropic({ apiKey });
+    const clientOpts: { apiKey: string; baseURL?: string } = { apiKey: aiConfig.token };
+    if (aiConfig.baseUrl) {
+      clientOpts.baseURL = aiConfig.baseUrl;
+    }
+    const client = new Anthropic(clientOpts);
     const response = await client.messages.create({
-      model: 'claude-sonnet-4-20250514',
+      model: aiConfig.model,
       max_tokens: 1024,
       messages: [{ role: 'user', content: prompt }],
     });
