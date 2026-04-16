@@ -244,12 +244,12 @@ export async function aiAnalyzeArchitecture(
   const validNodeIds = new Set(analysis.nodes.map(n => n.id));
   const serialized = serializeAnalysis(analysis);
 
-  // Call Claude API
+  // Call AI API (using configured provider)
   let rawResponse: string;
   try {
     const { Anthropic } = await import('@anthropic-ai/sdk');
-    const apiKey = process.env.ANTHROPIC_API_KEY;
-    if (!apiKey) {
+    const aiConfig = store.load().settings.aiProvider;
+    if (!aiConfig?.token) {
       const fallback: AiArchitectureAnalysis = {
         id: uuidv4(),
         projectId,
@@ -257,19 +257,23 @@ export async function aiAnalyzeArchitecture(
         issues: [],
         suggestions: [],
         score: 0,
-        summary: '未配置 Claude API Key。请在环境变量中设置 `ANTHROPIC_API_KEY`。',
+        summary: '未配置 AI 模型。请在设置页面中配置 AI 模型厂家和 API Token。',
       };
       persistResult(store, projectId, fallback);
       return fallback;
     }
 
-    const client = new Anthropic({ apiKey });
+    const clientOpts: { apiKey: string; baseURL?: string } = { apiKey: aiConfig.token };
+    if (aiConfig.baseUrl) {
+      clientOpts.baseURL = aiConfig.baseUrl;
+    }
+    const client = new Anthropic(clientOpts);
     const controller = new AbortController();
     const timeout = setTimeout(() => controller.abort(), 60_000);
     let response;
     try {
       response = await client.messages.create({
-        model: 'claude-sonnet-4-20250514',
+        model: aiConfig.model,
         max_tokens: 4096,
         messages: [{ role: 'user', content: serialized }],
         system: SYSTEM_PROMPT,
