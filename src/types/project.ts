@@ -64,9 +64,19 @@ export interface Project {
   services?: ProjectService[];
 }
 
+export type AiProviderId = 'claude-official' | 'glm' | 'deepseek' | 'minimax' | 'xiaomi';
+
+export interface AiProviderConfig {
+  provider: AiProviderId;
+  token: string;
+  baseUrl: string;
+  model: string;
+}
+
 export interface AppSettings {
   defaultTerminalFont: string;
   defaultTerminalFontSize: number;
+  aiProvider?: AiProviderConfig | null;
 }
 
 export interface WorkspaceScene {
