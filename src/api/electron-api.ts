@@ -137,6 +137,18 @@ export const electronApi = {
     return api.updateSettings(settings);
   },
 
+  async getAiProvider(): Promise<{ provider: string; token: string; baseUrl: string; model: string } | null> {
+    return api.getAiProvider();
+  },
+
+  async updateAiProvider(data: { provider: string; token: string }): Promise<{ provider: string; token: string; baseUrl: string; model: string }> {
+    return api.updateAiProvider(data);
+  },
+
+  async clearAiProvider(): Promise<void> {
+    return api.clearAiProvider();
+  },
+
   async startProcess(projectId: string, cwd: string, cmd: string[]): Promise<boolean> {
     return api.startProcess(projectId, cwd, cmd);
   },
