@@ -5,6 +5,19 @@ import { v4 as uuidv4 } from 'uuid';
 import { Store, createDefaultServices } from '../core/store';
 import type { StoreProject } from '../core/store';
 import { DetectorRegistry } from '../detectors/registry';
+import type { AiProviderId, AiProviderConfig } from '../../src/types/project';
+
+const AI_PROVIDER_PRESETS: Record<AiProviderId, { baseUrl: string; model: string; label: string }> = {
+  'claude-official': { baseUrl: '', model: 'claude-sonnet-4-20250514', label: 'Claude Official' },
+  'glm':             { baseUrl: 'https://open.bigmodel.cn/api/anthropic', model: 'glm-5-turbo', label: '智谱 GLM' },
+  'deepseek':        { baseUrl: 'https://api.deepseek.com/anthropic', model: 'deepseek-chat', label: 'DeepSeek' },
+  'minimax':         { baseUrl: 'https://api.minimaxi.com/anthropic', model: 'MiniMax-M2.5', label: 'MiniMax' },
+  'xiaomi':          { baseUrl: 'https://token-plan-cn.xiaomimimo.com/anthropic', model: 'mimo-v2-pro', label: '小米' },
+};
+
+export function getProviderPresets(): typeof AI_PROVIDER_PRESETS {
+  return AI_PROVIDER_PRESETS;
+}
 
 export function registerProjectIpc(store: Store): void {
   const registry = new DetectorRegistry();
@@ -128,6 +141,31 @@ export function registerProjectIpc(store: Store): void {
     data.settings = { ...data.settings, ...settings };
     store.save(data);
     return data.settings;
+  });
+
+  ipcMain.handle('settings:getAiProvider', async () => {
+    return store.load().settings.aiProvider ?? null;
+  });
+
+  ipcMain.handle('settings:updateAiProvider', async (_event, input: { provider: AiProviderId; token: string }) => {
+    const preset = AI_PROVIDER_PRESETS[input.provider];
+    if (!preset) throw new Error(`未知的 AI 厂商: ${input.provider}`);
+    const config: AiProviderConfig = {
+      provider: input.provider,
+      token: input.token,
+      baseUrl: preset.baseUrl,
+      model: preset.model,
+    };
+    const data = store.load();
+    data.settings = { ...data.settings, aiProvider: config };
+    store.save(data);
+    return config;
+  });
+
+  ipcMain.handle('settings:clearAiProvider', async () => {
+    const data = store.load();
+    data.settings = { ...data.settings, aiProvider: null };
+    store.save(data);
   });
 }
 
