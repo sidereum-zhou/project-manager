@@ -1,6 +1,30 @@
 import fs from 'fs';
 import path from 'path';
 
+type ProjectTab = 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'claude' | 'settings';
+type ServiceEnvMap = Record<string, string>;
+
+export interface StoreProjectService {
+  id: string;
+  name: string;
+  command: string[];
+  cwd: string;
+  autoStart: boolean;
+  env?: ServiceEnvMap | null;
+  healthCheck?: {
+    enabled: boolean;
+    mode: 'http' | 'tcp';
+    target: string;
+    intervalSec: number;
+    timeoutMs: number;
+  } | null;
+  restartPolicy?: {
+    enabled: boolean;
+    maxRetries: number;
+    delayMs: number;
+  } | null;
+}
+
 export interface StoreProject {
   id: string;
   name: string;
@@ -14,10 +38,32 @@ export interface StoreProject {
   addedAt: string;
   customStartCmd?: string[] | null;
   customInstallCmd?: string[] | null;
+  lastOpenedTab?: ProjectTab | null;
+  lastAppliedSceneId?: string | null;
+  services?: StoreProjectService[];
+}
+
+export interface StoreWorkspaceScene {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  targetTab: 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'claude' | 'settings';
+  terminalCommands: string[];
+  serviceIds?: string[];
+  stopOtherServices?: boolean;
+  commandDelayMs?: number | null;
+  preferredBranch?: string | null;
+  autoRun: boolean;
+  lastUsedAt?: string | null;
+  useCount?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface StoreData {
   projects: StoreProject[];
+  workspaceScenes: StoreWorkspaceScene[];
   settings: {
     defaultTerminalFont: string;
     defaultTerminalFontSize: number;
@@ -26,6 +72,7 @@ export interface StoreData {
 
 const DEFAULT_DATA: StoreData = {
   projects: [],
+  workspaceScenes: [],
   settings: {
     defaultTerminalFont: 'Consolas',
     defaultTerminalFontSize: 14,
@@ -48,23 +95,132 @@ export class Store {
     if (this.data) return this.data;
 
     if (!fs.existsSync(this.filePath)) {
-      this.data = { ...JSON.parse(JSON.stringify(DEFAULT_DATA)) };
+      this.data = this.normalize(DEFAULT_DATA);
       return this.data;
     }
 
     const raw = fs.readFileSync(this.filePath, 'utf-8');
-    this.data = JSON.parse(raw) as StoreData;
+    this.data = this.normalize(JSON.parse(raw) as Partial<StoreData>);
     return this.data;
   }
 
   save(data: StoreData): void {
-    this.data = data;
+    this.data = this.normalize(data);
     const tmpPath = this.filePath + '.tmp';
-    fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
+    fs.writeFileSync(tmpPath, JSON.stringify(this.data, null, 2), 'utf-8');
     fs.renameSync(tmpPath, this.filePath);
   }
 
   getFilePath(): string {
     return this.filePath;
   }
+
+  private normalize(data: Partial<StoreData>): StoreData {
+    return {
+      projects: Array.isArray(data.projects)
+        ? data.projects.map(project => ({
+            ...project,
+            lastOpenedTab: project.lastOpenedTab ?? null,
+            lastAppliedSceneId: project.lastAppliedSceneId ?? null,
+            services: normalizeProjectServices(project),
+          }))
+        : [],
+      workspaceScenes: Array.isArray(data.workspaceScenes)
+        ? data.workspaceScenes.map(scene => ({
+            ...scene,
+            serviceIds: Array.isArray(scene.serviceIds) ? scene.serviceIds : [],
+            stopOtherServices: Boolean(scene.stopOtherServices),
+            commandDelayMs: normalizeCommandDelay(scene.commandDelayMs),
+            lastUsedAt: scene.lastUsedAt ?? null,
+            useCount: scene.useCount ?? 0,
+          }))
+        : [],
+      settings: {
+        ...DEFAULT_DATA.settings,
+        ...(data.settings || {}),
+      },
+    };
+  }
+}
+
+function normalizeProjectServices(project: Partial<StoreProject>): StoreProjectService[] {
+  if (Array.isArray(project.services) && project.services.length > 0) {
+    return project.services.map((service, index) => ({
+      id: service.id || `service-${index + 1}`,
+      name: service.name || `Service ${index + 1}`,
+      command: Array.isArray(service.command) ? service.command : [],
+      cwd: service.cwd || '.',
+      autoStart: Boolean(service.autoStart),
+      env: service.env ?? null,
+      healthCheck: normalizeHealthCheck(service.healthCheck),
+      restartPolicy: normalizeRestartPolicy(service.restartPolicy),
+    }));
+  }
+
+  return createDefaultServices(project.type || 'unknown', project.customStartCmd || project.startCmd);
+}
+
+export function createDefaultServices(type: string, startCmd?: string[] | null): StoreProjectService[] {
+  if (!startCmd || startCmd.length === 0) return [];
+
+  return [{
+    id: 'primary-service',
+    name: defaultServiceName(type),
+    command: startCmd,
+    cwd: '.',
+    autoStart: false,
+    env: null,
+    healthCheck: null,
+    restartPolicy: null,
+  }];
+}
+
+function defaultServiceName(type: string): string {
+  switch (type) {
+    case 'python':
+      return 'Python Service';
+    case 'java':
+      return 'Java Service';
+    case 'monorepo':
+      return 'Primary Workspace';
+    default:
+      return 'App Service';
+  }
+}
+
+function normalizeHealthCheck(value: StoreProjectService['healthCheck'] | undefined): StoreProjectService['healthCheck'] {
+  if (!value || typeof value !== 'object') return null;
+
+  return {
+    enabled: Boolean(value.enabled),
+    mode: value.mode === 'tcp' ? 'tcp' : 'http',
+    target: typeof value.target === 'string' ? value.target.trim() : '',
+    intervalSec: normalizePositiveInt(value.intervalSec, 15),
+    timeoutMs: normalizePositiveInt(value.timeoutMs, 3000),
+  };
+}
+
+function normalizeRestartPolicy(value: StoreProjectService['restartPolicy'] | undefined): StoreProjectService['restartPolicy'] {
+  if (!value || typeof value !== 'object') return null;
+
+  return {
+    enabled: Boolean(value.enabled),
+    maxRetries: normalizeNonNegativeInt(value.maxRetries, 2),
+    delayMs: normalizePositiveInt(value.delayMs, 1500),
+  };
+}
+
+function normalizeCommandDelay(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 300;
+  return Math.max(0, Math.round(value));
+}
+
+function normalizePositiveInt(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return fallback;
+  return Math.round(value);
+}
+
+function normalizeNonNegativeInt(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return fallback;
+  return Math.round(value);
 }
