@@ -5,6 +5,11 @@ import { ProcessManager } from './core/process-manager';
 import { registerProjectIpc } from './ipc/project.ipc';
 import { registerProcessIpc } from './ipc/process.ipc';
 import { registerTerminalIpc } from './ipc/terminal.ipc';
+import { registerGitIpc } from './ipc/git.ipc';
+import { registerWorkspaceIpc } from './ipc/workspace.ipc';
+import { registerSystemIpc } from './ipc/system.ipc';
+import { registerClaudeIpc, stopAllClaudeRuns } from './ipc/claude-agent.ipc';
+import { registerQualityIpc } from './ipc/quality.ipc';
 
 let mainWindow: BrowserWindow | null = null;
 let processManager: ProcessManager;
@@ -17,6 +22,11 @@ function initApp(): void {
   registerProjectIpc(store);
   registerProcessIpc(processManager);
   registerTerminalIpc();
+  registerGitIpc();
+  registerWorkspaceIpc(store);
+  registerSystemIpc();
+  void registerClaudeIpc();
+  registerQualityIpc(store);
 }
 
 function createWindow(): void {
@@ -53,6 +63,7 @@ app.whenReady().then(() => {
 
 app.on('window-all-closed', () => {
   processManager.stopAll();
+  stopAllClaudeRuns();
   if (process.platform !== 'darwin') {
     app.quit();
   }
@@ -60,6 +71,7 @@ app.on('window-all-closed', () => {
 
 app.on('before-quit', () => {
   processManager.stopAll();
+  stopAllClaudeRuns();
 });
 
 app.on('activate', () => {

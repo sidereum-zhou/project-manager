@@ -1,0 +1,801 @@
+<template>
+  <div class="services-page">
+    <section class="services-hero pm-panel">
+      <div class="services-hero-copy">
+        <p class="pm-kicker">Orchestration</p>
+        <h3 class="services-title">多服务编排 + 日志中心</h3>
+        <p class="pm-panel-copy">
+          为当前项目定义多个服务，一键批量启动、停止或重启，并在右侧集中查看日志流。
+        </p>
+      </div>
+      <div class="services-hero-actions">
+        <span class="pm-pill">服务 {{ services.length }}</span>
+        <span class="pm-pill">运行中 {{ runningCount }}</span>
+        <span class="pm-pill">健康 {{ healthyCount }}</span>
+        <span class="pm-pill">日志 {{ totalLogEntries }}</span>
+        <n-button size="small" type="primary" :disabled="services.length === 0" @click="startAllServices">启动全部</n-button>
+        <n-button size="small" quaternary :disabled="runningCount === 0" @click="stopAllServices">停止全部</n-button>
+        <n-button size="small" quaternary @click="openCreateModal">新增服务</n-button>
+      </div>
+    </section>
+
+    <div class="services-layout">
+      <section class="services-list pm-panel">
+        <div class="pm-panel-header">
+          <div>
+            <p class="pm-kicker">Services</p>
+            <h3 class="pm-panel-title">服务清单</h3>
+          </div>
+          <n-button
+            v-if="autoStartServices.length > 0"
+            size="small"
+            quaternary
+            @click="startAutoServices"
+          >
+            启动自动服务
+          </n-button>
+        </div>
+
+        <div v-if="services.length === 0" class="pm-empty-state">
+          <strong>还没有配置服务</strong>
+          <span>先添加一个服务，比如 `web`、`api`、`worker`，再开始编排。</span>
+        </div>
+        <div v-else class="services-cards">
+          <article
+            v-for="service in services"
+            :key="service.id"
+            class="service-card"
+            :class="{ selected: selectedLogServiceId === service.id }"
+            @click="selectedLogServiceId = service.id"
+          >
+            <div class="service-card-head">
+              <div class="service-card-title-wrap">
+                <strong class="service-card-title">{{ service.name }}</strong>
+                <span class="service-card-status" :class="serviceStatus(service.id)">
+                  {{ statusLabel(serviceStatus(service.id)) }}
+                </span>
+                <span class="service-card-health" :class="healthClass(service.id)">
+                  {{ healthLabel(serviceHealth(service.id).state) }}
+                </span>
+                <span v-if="service.autoStart" class="service-card-tag">Auto</span>
+              </div>
+            </div>
+
+            <div class="service-card-body">
+              <div class="service-card-line">
+                <span class="service-card-label">命令</span>
+                <code class="service-card-command">{{ formatCommand(service.command) }}</code>
+              </div>
+              <div class="service-card-line">
+                <span class="service-card-label">目录</span>
+                <span class="service-card-cwd">{{ service.cwd || '.' }}</span>
+              </div>
+              <div class="service-card-line">
+                <span class="service-card-label">健康检查</span>
+                <span class="service-card-cwd">{{ serviceHealth(service.id).message || '未配置健康检查' }}</span>
+              </div>
+            </div>
+
+            <div class="service-card-actions">
+              <n-button size="small" type="primary" :disabled="serviceStatus(service.id) === 'running' || serviceStatus(service.id) === 'starting'" @click.stop="startService(service)">
+                启动
+              </n-button>
+              <n-button size="small" quaternary @click.stop="restartService(service)">
+                重启
+              </n-button>
+              <n-button size="small" quaternary :disabled="serviceStatus(service.id) === 'stopped'" @click.stop="stopService(service.id)">
+                停止
+              </n-button>
+              <n-button size="small" quaternary @click.stop="startEditModal(service)">
+                编辑
+              </n-button>
+              <n-button size="small" quaternary @click.stop="removeService(service)">
+                删除
+              </n-button>
+            </div>
+          </article>
+        </div>
+      </section>
+
+      <section class="services-logs pm-panel">
+        <div class="services-logs-header">
+          <div class="services-logs-head-copy">
+            <p class="pm-kicker">Logs</p>
+            <h3 class="pm-panel-title">日志中心</h3>
+            <p class="pm-muted">{{ currentLogLabel }}</p>
+          </div>
+          <div class="services-logs-actions">
+            <n-input
+              v-model:value="searchQuery"
+              size="small"
+              clearable
+              placeholder="搜索日志内容"
+              class="services-search"
+            />
+            <n-select
+              v-model:value="streamFilter"
+              size="small"
+              :options="streamOptions"
+              class="services-stream-select"
+            />
+            <div class="services-auto-scroll">
+              <span>自动滚动</span>
+              <n-switch v-model:value="autoScroll" />
+            </div>
+            <n-button size="small" quaternary @click="clearCurrentLogs">清空日志</n-button>
+          </div>
+        </div>
+
+        <div class="services-log-filter-bar">
+          <button
+            class="services-filter-pill"
+            :class="{ active: selectedLogServiceId === 'all' }"
+            @click="selectedLogServiceId = 'all'"
+          >
+            全部服务
+          </button>
+          <button
+            v-for="service in services"
+            :key="service.id"
+            class="services-filter-pill"
+            :class="{ active: selectedLogServiceId === service.id }"
+            @click="selectedLogServiceId = service.id"
+          >
+            {{ service.name }}
+          </button>
+        </div>
+
+        <div ref="logStreamRef" class="services-log-stream">
+          <div v-if="filteredLogs.length === 0" class="pm-empty-state services-log-empty">
+            <strong>还没有日志</strong>
+            <span>启动一个服务后，这里会实时显示 stdout / stderr / 系统日志。</span>
+          </div>
+          <div
+            v-for="log in filteredLogs"
+            :key="`${log.serviceId}-${log.id}`"
+            class="service-log-line"
+            :class="log.stream"
+          >
+            <span class="service-log-time">{{ formatTime(log.timestamp) }}</span>
+            <span class="service-log-service">{{ serviceName(log.serviceId) }}</span>
+            <span class="service-log-stream-tag">{{ streamLabel(log.stream) }}</span>
+            <code class="service-log-text">{{ log.message }}</code>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <n-modal
+      v-model:show="editorVisible"
+      preset="card"
+      :title="editingServiceId ? '编辑服务' : '新增服务'"
+      :style="{ width: '620px' }"
+      :bordered="true"
+    >
+      <div class="service-editor">
+        <n-form label-placement="top">
+          <n-form-item label="服务名称">
+            <n-input v-model:value="editor.name" placeholder="例如：Web / API / Worker" />
+          </n-form-item>
+
+          <n-form-item label="执行目录">
+            <n-input v-model:value="editor.cwd" placeholder="默认 . ，支持相对项目根目录路径" />
+          </n-form-item>
+
+          <n-form-item label="启动命令">
+            <n-input
+              v-model:value="editor.commandText"
+              placeholder="例如：npm run dev"
+            />
+          </n-form-item>
+
+          <n-form-item label="环境变量（可选）">
+            <n-input
+              v-model:value="editor.envText"
+              type="textarea"
+              :autosize="{ minRows: 3, maxRows: 6 }"
+              placeholder="每行一个 KEY=VALUE"
+            />
+          </n-form-item>
+
+          <div class="service-editor-grid">
+            <n-form-item label="健康检查方式">
+              <n-select v-model:value="editor.healthMode" :options="healthModeOptions" />
+            </n-form-item>
+
+            <n-form-item label="健康检查地址">
+              <n-input
+                v-model:value="editor.healthTarget"
+                placeholder="http://localhost:3000/health 或 127.0.0.1:3000"
+              />
+            </n-form-item>
+          </div>
+
+          <div class="service-editor-grid">
+            <n-form-item label="检查间隔（秒）">
+              <n-input-number v-model:value="editor.healthIntervalSec" :min="5" :max="300" />
+            </n-form-item>
+
+            <n-form-item label="超时（毫秒）">
+              <n-input-number v-model:value="editor.healthTimeoutMs" :min="500" :max="30000" :step="500" />
+            </n-form-item>
+          </div>
+
+          <div class="service-editor-switch">
+            <span>
+              <strong>标记为自动服务</strong>
+              <small>点击“启动自动服务”时会优先启动这些服务。</small>
+            </span>
+            <n-switch v-model:value="editor.autoStart" />
+          </div>
+
+          <div class="service-editor-switch">
+            <span>
+              <strong>启用健康检查</strong>
+              <small>支持 HTTP 或 TCP 探测，用于判断服务是否真正可用。</small>
+            </span>
+            <n-switch v-model:value="editor.healthEnabled" />
+          </div>
+
+          <div class="service-editor-switch">
+            <span>
+              <strong>失败时自动重启</strong>
+              <small>进程异常退出或健康检查连续失败时，会尝试自动拉起。</small>
+            </span>
+            <n-switch v-model:value="editor.restartEnabled" />
+          </div>
+
+          <div class="service-editor-grid">
+            <n-form-item label="最大重试次数">
+              <n-input-number v-model:value="editor.restartMaxRetries" :min="0" :max="20" />
+            </n-form-item>
+
+            <n-form-item label="重启延迟（毫秒）">
+              <n-input-number v-model:value="editor.restartDelayMs" :min="500" :max="30000" :step="500" />
+            </n-form-item>
+          </div>
+        </n-form>
+
+        <div class="service-editor-actions">
+          <n-button quaternary @click="editorVisible = false">取消</n-button>
+          <n-button type="primary" @click="saveService">{{ editingServiceId ? '保存修改' : '创建服务' }}</n-button>
+        </div>
+      </div>
+    </n-modal>
+  </div>
+</template>
+
+<script setup lang="ts">
+import { computed, nextTick, onBeforeUnmount, onMounted, reactive, ref, watch } from 'vue';
+import {
+  NButton,
+  NForm,
+  NFormItem,
+  NInput,
+  NInputNumber,
+  NModal,
+  NSelect,
+  NSwitch,
+  useDialog,
+  useMessage,
+} from 'naive-ui';
+import { electronApi } from '@/api/electron-api';
+import { useProjectStore } from '@/stores/projects';
+import type { ProcessStatus, Project, ProjectService, ServiceHealthStatus, ServiceLogEntry } from '@/types/project';
+
+interface DecoratedLogEntry extends ServiceLogEntry {
+  serviceId: string;
+}
+
+const props = defineProps<{
+  project: Project;
+}>();
+
+const message = useMessage();
+const dialog = useDialog();
+const projectStore = useProjectStore();
+
+const serviceStatuses = ref<Record<string, ProcessStatus>>({});
+const serviceHealthStatuses = ref<Record<string, ServiceHealthStatus>>({});
+const serviceLogs = ref<Record<string, ServiceLogEntry[]>>({});
+const selectedLogServiceId = ref<string>('all');
+const searchQuery = ref('');
+const streamFilter = ref<'all' | 'stdout' | 'stderr' | 'system'>('all');
+const autoScroll = ref(true);
+const editorVisible = ref(false);
+const editingServiceId = ref<string | null>(null);
+const logStreamRef = ref<HTMLElement | null>(null);
+
+const editor = reactive({
+  name: '',
+  cwd: '.',
+  commandText: '',
+  envText: '',
+  autoStart: false,
+  healthEnabled: false,
+  healthMode: 'http' as 'http' | 'tcp',
+  healthTarget: '',
+  healthIntervalSec: 15,
+  healthTimeoutMs: 3000,
+  restartEnabled: false,
+  restartMaxRetries: 2,
+  restartDelayMs: 1500,
+});
+
+let offLog: (() => void) | null = null;
+let offStatus: (() => void) | null = null;
+let offHealth: (() => void) | null = null;
+
+const services = computed(() => props.project.services || []);
+const autoStartServices = computed(() => services.value.filter(service => service.autoStart));
+const runningCount = computed(() => Object.values(serviceStatuses.value).filter(status => status === 'running' || status === 'starting').length);
+const healthyCount = computed(() => services.value.filter(service => serviceHealth(service.id).state === 'healthy').length);
+const totalLogEntries = computed(() => Object.values(serviceLogs.value).reduce((total, entries) => total + entries.length, 0));
+const currentLogLabel = computed(() => {
+  return selectedLogServiceId.value === 'all'
+    ? '正在汇总所有服务的日志输出。'
+    : `当前仅查看 ${serviceName(selectedLogServiceId.value)} 的日志。`;
+});
+const streamOptions = [
+  { label: '全部流', value: 'all' },
+  { label: 'stdout', value: 'stdout' },
+  { label: 'stderr', value: 'stderr' },
+  { label: 'system', value: 'system' },
+];
+const healthModeOptions = [
+  { label: 'HTTP', value: 'http' },
+  { label: 'TCP', value: 'tcp' },
+];
+
+const filteredLogs = computed<DecoratedLogEntry[]>(() => {
+  const serviceIds = selectedLogServiceId.value === 'all'
+    ? services.value.map(service => service.id)
+    : [selectedLogServiceId.value];
+
+  const rows = serviceIds.flatMap((serviceId) =>
+    (serviceLogs.value[serviceId] || []).map((entry) => ({
+      ...entry,
+      serviceId,
+    })),
+  );
+
+  return rows
+    .filter((entry) => streamFilter.value === 'all' || entry.stream === streamFilter.value)
+    .filter((entry) => {
+      const query = searchQuery.value.trim().toLowerCase();
+      if (!query) return true;
+      return entry.message.toLowerCase().includes(query) || serviceName(entry.serviceId).toLowerCase().includes(query);
+    })
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+});
+
+onMounted(async () => {
+  attachServiceListeners();
+  await hydrateRuntimeState();
+  if (services.value.length > 0 && selectedLogServiceId.value === 'all') {
+    selectedLogServiceId.value = 'all';
+  }
+});
+
+onBeforeUnmount(() => {
+  offLog?.();
+  offStatus?.();
+  offHealth?.();
+});
+
+watch(() => props.project.id, async () => {
+  serviceStatuses.value = {};
+  serviceHealthStatuses.value = {};
+  serviceLogs.value = {};
+  selectedLogServiceId.value = 'all';
+  await hydrateRuntimeState();
+});
+
+watch(() => services.value.map(service => service.id).join(','), async () => {
+  if (selectedLogServiceId.value !== 'all' && !services.value.some(service => service.id === selectedLogServiceId.value)) {
+    selectedLogServiceId.value = 'all';
+  }
+  await hydrateRuntimeState();
+});
+
+watch(filteredLogs, async () => {
+  if (!autoScroll.value) return;
+  await nextTick();
+  if (logStreamRef.value) {
+    logStreamRef.value.scrollTop = logStreamRef.value.scrollHeight;
+  }
+});
+
+function attachServiceListeners(): void {
+  offLog?.();
+  offStatus?.();
+  offHealth?.();
+
+  offLog = electronApi.onServiceLog((payload) => {
+    if (payload.projectId !== props.project.id) return;
+
+    serviceLogs.value = {
+      ...serviceLogs.value,
+      [payload.serviceId]: [...(serviceLogs.value[payload.serviceId] || []), payload.entry].slice(-1200),
+    };
+  });
+
+  offStatus = electronApi.onServiceStatus((payload) => {
+    if (payload.projectId !== props.project.id) return;
+
+    serviceStatuses.value = {
+      ...serviceStatuses.value,
+      [payload.serviceId]: payload.status,
+    };
+  });
+
+  offHealth = electronApi.onServiceHealth((payload) => {
+    if (payload.projectId !== props.project.id) return;
+
+    serviceHealthStatuses.value = {
+      ...serviceHealthStatuses.value,
+      [payload.serviceId]: payload.health,
+    };
+  });
+}
+
+async function hydrateRuntimeState(): Promise<void> {
+  const serviceIds = services.value.map(service => service.id);
+  if (serviceIds.length === 0) {
+    serviceStatuses.value = {};
+    serviceHealthStatuses.value = {};
+    serviceLogs.value = {};
+    return;
+  }
+
+  const [statuses, healthStatuses, logs] = await Promise.all([
+    electronApi.listServiceStatuses(props.project.id, serviceIds),
+    electronApi.listServiceHealthStatuses(props.project.id, serviceIds),
+    Promise.all(serviceIds.map(async (serviceId) => [serviceId, await electronApi.getServiceLogs(props.project.id, serviceId)] as const)),
+  ]);
+
+  serviceStatuses.value = statuses;
+  serviceHealthStatuses.value = healthStatuses;
+  serviceLogs.value = Object.fromEntries(logs);
+}
+
+function serviceStatus(serviceId: string): ProcessStatus {
+  return serviceStatuses.value[serviceId] || 'stopped';
+}
+
+function serviceName(serviceId: string): string {
+  return services.value.find(service => service.id === serviceId)?.name || serviceId;
+}
+
+function serviceHealth(serviceId: string): ServiceHealthStatus {
+  return serviceHealthStatuses.value[serviceId] || {
+    state: services.value.find(service => service.id === serviceId)?.healthCheck?.enabled ? 'unknown' : 'disabled',
+    message: services.value.find(service => service.id === serviceId)?.healthCheck?.enabled ? '等待服务运行' : '未配置健康检查',
+    checkedAt: null,
+    failureCount: 0,
+  };
+}
+
+function statusLabel(status: ProcessStatus): string {
+  switch (status) {
+    case 'starting':
+      return '启动中';
+    case 'running':
+      return '运行中';
+    case 'error':
+      return '异常';
+    default:
+      return '已停止';
+  }
+}
+
+function healthLabel(state: ServiceHealthStatus['state']): string {
+  switch (state) {
+    case 'healthy':
+      return '健康';
+    case 'checking':
+      return '检查中';
+    case 'unhealthy':
+      return '异常';
+    case 'unknown':
+      return '未知';
+    default:
+      return '未配置';
+  }
+}
+
+function healthClass(serviceId: string): string {
+  return `health-${serviceHealth(serviceId).state}`;
+}
+
+async function startService(service: ProjectService): Promise<void> {
+  await electronApi.startService(props.project.id, props.project.path, service);
+}
+
+async function stopService(serviceId: string): Promise<void> {
+  await electronApi.stopService(props.project.id, serviceId);
+}
+
+async function restartService(service: ProjectService): Promise<void> {
+  await electronApi.restartService(props.project.id, props.project.path, service);
+}
+
+async function startAllServices(): Promise<void> {
+  for (const service of services.value) {
+    await startService(service);
+  }
+  message.success('已启动全部服务');
+}
+
+async function stopAllServices(): Promise<void> {
+  for (const service of services.value) {
+    await stopService(service.id);
+  }
+  message.success('已停止全部服务');
+}
+
+async function startAutoServices(): Promise<void> {
+  for (const service of autoStartServices.value) {
+    await startService(service);
+  }
+  message.success('已启动自动服务');
+}
+
+function openCreateModal(): void {
+  editingServiceId.value = null;
+  editor.name = '';
+  editor.cwd = '.';
+  editor.commandText = '';
+  editor.envText = '';
+  editor.autoStart = false;
+  editor.healthEnabled = false;
+  editor.healthMode = 'http';
+  editor.healthTarget = '';
+  editor.healthIntervalSec = 15;
+  editor.healthTimeoutMs = 3000;
+  editor.restartEnabled = false;
+  editor.restartMaxRetries = 2;
+  editor.restartDelayMs = 1500;
+  editorVisible.value = true;
+}
+
+function startEditModal(service: ProjectService): void {
+  editingServiceId.value = service.id;
+  editor.name = service.name;
+  editor.cwd = service.cwd || '.';
+  editor.commandText = formatCommand(service.command);
+  editor.envText = formatEnv(service.env || null);
+  editor.autoStart = service.autoStart;
+  editor.healthEnabled = Boolean(service.healthCheck?.enabled);
+  editor.healthMode = service.healthCheck?.mode || 'http';
+  editor.healthTarget = service.healthCheck?.target || '';
+  editor.healthIntervalSec = service.healthCheck?.intervalSec || 15;
+  editor.healthTimeoutMs = service.healthCheck?.timeoutMs || 3000;
+  editor.restartEnabled = Boolean(service.restartPolicy?.enabled);
+  editor.restartMaxRetries = service.restartPolicy?.maxRetries ?? 2;
+  editor.restartDelayMs = service.restartPolicy?.delayMs ?? 1500;
+  editorVisible.value = true;
+}
+
+async function saveService(): Promise<void> {
+  const command = parseCommand(editor.commandText);
+  if (!editor.name.trim()) {
+    message.warning('请先输入服务名称');
+    return;
+  }
+  if (command.length === 0) {
+    message.warning('请先输入有效的启动命令');
+    return;
+  }
+  if (editor.healthEnabled && !editor.healthTarget.trim()) {
+    message.warning('启用健康检查时请填写检查地址');
+    return;
+  }
+
+  const nextService: ProjectService = {
+    id: editingServiceId.value || createServiceId(),
+    name: editor.name.trim(),
+    cwd: editor.cwd.trim() || '.',
+    command,
+    autoStart: editor.autoStart,
+    env: parseEnv(editor.envText),
+    healthCheck: editor.healthTarget.trim() || editor.healthEnabled ? {
+      enabled: editor.healthEnabled,
+      mode: editor.healthMode,
+      target: editor.healthTarget.trim(),
+      intervalSec: Math.max(5, Math.round(editor.healthIntervalSec || 15)),
+      timeoutMs: Math.max(500, Math.round(editor.healthTimeoutMs || 3000)),
+    } : null,
+    restartPolicy: editor.restartEnabled ? {
+      enabled: true,
+      maxRetries: Math.max(0, Math.round(editor.restartMaxRetries || 0)),
+      delayMs: Math.max(500, Math.round(editor.restartDelayMs || 1500)),
+    } : null,
+  };
+
+  const nextServices = editingServiceId.value
+    ? services.value.map(service => service.id === editingServiceId.value ? nextService : service)
+    : [...services.value, nextService];
+
+  await projectStore.updateProject(props.project.id, {
+    services: nextServices,
+  });
+
+  editorVisible.value = false;
+  message.success(editingServiceId.value ? '服务已更新' : '服务已创建');
+}
+
+function removeService(service: ProjectService): void {
+  dialog.warning({
+    title: '删除服务？',
+    content: `会移除 ${service.name} 的配置，当前内存中的日志也会被清空。`,
+    positiveText: '删除',
+    negativeText: '取消',
+    onPositiveClick: async () => {
+      await stopService(service.id);
+      await electronApi.clearServiceLogs(props.project.id, service.id);
+      await projectStore.updateProject(props.project.id, {
+        services: services.value.filter(item => item.id !== service.id),
+      });
+
+      const { [service.id]: _, ...restLogs } = serviceLogs.value;
+      serviceLogs.value = restLogs;
+      const { [service.id]: __, ...restStatuses } = serviceStatuses.value;
+      serviceStatuses.value = restStatuses;
+      const { [service.id]: ___, ...restHealth } = serviceHealthStatuses.value;
+      serviceHealthStatuses.value = restHealth;
+      if (selectedLogServiceId.value === service.id) {
+        selectedLogServiceId.value = 'all';
+      }
+      message.success('服务已删除');
+    },
+  });
+}
+
+async function clearCurrentLogs(): Promise<void> {
+  if (selectedLogServiceId.value === 'all') {
+    for (const service of services.value) {
+      await electronApi.clearServiceLogs(props.project.id, service.id);
+    }
+    serviceLogs.value = {};
+    message.success('已清空全部日志');
+    return;
+  }
+
+  await electronApi.clearServiceLogs(props.project.id, selectedLogServiceId.value);
+  serviceLogs.value = {
+    ...serviceLogs.value,
+    [selectedLogServiceId.value]: [],
+  };
+  message.success('已清空当前服务日志');
+}
+
+function parseCommand(value: string): string[] {
+  return (value.match(/(?:[^\s"]+|"[^"]*")+/g) || [])
+    .map(token => token.replace(/^"(.*)"$/, '$1'));
+}
+
+function parseEnv(value: string): Record<string, string> | null {
+  const pairs = value
+    .split(/\r?\n/)
+    .map(line => line.trim())
+    .filter(Boolean)
+    .map((line) => {
+      const index = line.indexOf('=');
+      if (index === -1) return null;
+      const key = line.slice(0, index).trim();
+      const val = line.slice(index + 1).trim();
+      if (!key) return null;
+      return [key, val] as const;
+    })
+    .filter(Boolean) as Array<readonly [string, string]>;
+
+  if (pairs.length === 0) return null;
+  return Object.fromEntries(pairs);
+}
+
+function formatEnv(value: Record<string, string> | null): string {
+  if (!value) return '';
+  return Object.entries(value)
+    .map(([key, val]) => `${key}=${val}`)
+    .join('\n');
+}
+
+function formatCommand(command: string[]): string {
+  return command.join(' ');
+}
+
+function streamLabel(stream: ServiceLogEntry['stream']): string {
+  switch (stream) {
+    case 'stderr':
+      return 'ERR';
+    case 'system':
+      return 'SYS';
+    default:
+      return 'OUT';
+  }
+}
+
+function formatTime(value: string): string {
+  try {
+    return new Date(value).toLocaleTimeString('zh-CN', {
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+    });
+  } catch {
+    return value;
+  }
+}
+
+function createServiceId(): string {
+  return `service-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+</script>
+
+<style scoped>
+.services-page { display: flex; flex-direction: column; gap: 12px; height: 100%; padding: 24px; overflow: auto; }
+.services-hero, .services-list, .services-logs { padding: 20px; }
+.services-hero { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.services-hero-copy { display: flex; flex-direction: column; gap: 6px; }
+.services-title { font-size: 1.5rem; font-weight: 700; color: var(--pm-text-primary); letter-spacing: -0.02em; }
+.services-hero-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
+.services-layout { display: grid; grid-template-columns: minmax(320px, 0.92fr) minmax(0, 1.08fr); gap: 12px; min-height: 0; flex: 1; }
+.services-list, .services-logs { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
+.services-cards { display: flex; flex-direction: column; gap: 4px; overflow: auto; padding-right: 4px; }
+.service-card { display: flex; flex-direction: column; gap: 10px; padding: 14px 16px; border-radius: var(--pm-radius-sm); background: transparent; border: none; cursor: pointer; border-left: 3px solid transparent; transition: background-color 0.12s ease; }
+.service-card:hover { background: var(--pm-surface-container-low); }
+.service-card.selected { border-left-color: var(--pm-primary); background: rgba(0, 83, 219, 0.04); }
+.service-card-title-wrap { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.service-card-title { font-size: 0.8125rem; font-weight: 700; color: var(--pm-text-primary); }
+.service-card-status, .service-card-tag, .service-card-health { display: inline-flex; align-items: center; height: 22px; padding: 0 8px; border-radius: var(--pm-radius-xs); font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; }
+.service-card-status.starting { background: var(--pm-warning-bg); color: var(--pm-warning); }
+.service-card-status.running { background: var(--pm-success-bg); color: var(--pm-success); }
+.service-card-status.error { background: rgba(159, 64, 61, 0.1); color: var(--pm-error); }
+.service-card-status.stopped { background: var(--pm-surface-container-high); color: var(--pm-text-secondary); }
+.service-card-tag { background: rgba(0, 83, 219, 0.08); color: var(--pm-primary); }
+.service-card-health.health-healthy { background: var(--pm-success-bg); color: var(--pm-success); }
+.service-card-health.health-checking { background: rgba(0, 83, 219, 0.08); color: var(--pm-primary); }
+.service-card-health.health-unhealthy { background: rgba(159, 64, 61, 0.1); color: var(--pm-error); }
+.service-card-health.health-unknown { background: var(--pm-surface-container-high); color: var(--pm-text-secondary); }
+.service-card-health.health-disabled { background: var(--pm-surface-container-highest); color: var(--pm-text-tertiary); }
+.service-card-body { display: flex; flex-direction: column; gap: 6px; }
+.service-card-line { display: flex; flex-direction: column; gap: 2px; }
+.service-card-label { font-size: 0.625rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--pm-text-tertiary); }
+.service-card-command { font-family: var(--pm-font-code); font-size: 0.6875rem; color: var(--pm-text-primary); line-height: 1.5; word-break: break-word; }
+.service-card-cwd { color: var(--pm-text-secondary); font-size: 0.6875rem; }
+.service-card-actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.services-logs-header { display: flex; flex-direction: column; gap: 10px; }
+.services-logs-head-copy { display: flex; flex-direction: column; gap: 4px; }
+.services-logs-actions { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.services-search { width: 200px; }
+.services-stream-select { width: 120px; }
+.services-auto-scroll { display: inline-flex; align-items: center; gap: 6px; color: var(--pm-text-secondary); font-size: 0.6875rem; }
+.services-log-filter-bar { display: flex; flex-wrap: wrap; gap: 6px; }
+.services-filter-pill { border: none; background: var(--pm-surface-container-high); color: var(--pm-text-secondary); min-height: 28px; padding: 0 10px; border-radius: var(--pm-radius-xs); font-size: 0.6875rem; font-weight: 600; cursor: pointer; transition: all 0.12s ease; }
+.services-filter-pill.active { background: rgba(0, 83, 219, 0.1); color: var(--pm-primary); }
+.services-log-stream { flex: 1; min-height: 0; overflow: auto; border-radius: var(--pm-radius-md); background: #0f172a; border: 1px solid rgba(15, 23, 42, 0.2); }
+.services-log-empty { min-height: 200px; }
+.service-log-line { display: grid; grid-template-columns: 72px 110px 42px minmax(0, 1fr); gap: 8px; align-items: start; padding: 6px 14px; }
+.service-log-line.stdout { background: rgba(255, 255, 255, 0.01); }
+.service-log-line.stderr { background: rgba(239, 68, 68, 0.04); }
+.service-log-line.system { background: rgba(59, 130, 246, 0.04); }
+.service-log-time, .service-log-service, .service-log-stream-tag { font-size: 0.625rem; color: #64748b; }
+.service-log-service { color: #94a3b8; }
+.service-log-stream-tag { font-weight: 700; }
+.service-log-text { color: #e2e8f0; font-family: var(--pm-font-code); font-size: 0.6875rem; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+.service-editor { display: flex; flex-direction: column; gap: 12px; }
+.service-editor-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.service-editor-switch { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 12px 16px; border-radius: var(--pm-radius-sm); background: var(--pm-surface-container-low); border: none; }
+.service-editor-switch span { display: flex; flex-direction: column; gap: 2px; }
+.service-editor-switch strong { font-size: 0.8125rem; color: var(--pm-text-primary); }
+.service-editor-switch small { color: var(--pm-text-secondary); line-height: 1.4; font-size: 0.6875rem; }
+.service-editor-actions { display: flex; justify-content: flex-end; gap: 8px; }
+@media (max-width: 1180px) { .services-layout { grid-template-columns: 1fr; } }
+@media (max-width: 760px) {
+  .services-hero { flex-direction: column; }
+  .services-hero-actions { justify-content: flex-start; }
+  .service-log-line { grid-template-columns: 1fr; }
+  .service-editor-grid { grid-template-columns: 1fr; }
+}
+</style>

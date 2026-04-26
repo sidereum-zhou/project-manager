@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
 import os from 'os';
-import { Store } from './store';
+import { Store, createDefaultServices } from './store';
 
 describe('Store', () => {
   let tmpDir: string;
@@ -36,7 +36,11 @@ describe('Store', () => {
         addedAt: '2026-04-11T00:00:00Z',
         customStartCmd: null,
         customInstallCmd: null,
+        lastOpenedTab: 'overview',
+        lastAppliedSceneId: null,
+        services: createDefaultServices('nodejs', ['npm', 'start']),
       }],
+      workspaceScenes: [],
       settings: {
         defaultTerminalFont: 'Consolas',
         defaultTerminalFontSize: 14,
@@ -50,6 +54,7 @@ describe('Store', () => {
   it('should write atomically (no partial writes)', () => {
     store.save({
       projects: [{ id: '1', name: 'a', path: '/a', type: 'nodejs', addedAt: '2026-04-11T00:00:00Z' }],
+      workspaceScenes: [],
       settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
     });
     const filePath = store.getFilePath();
@@ -60,9 +65,169 @@ describe('Store', () => {
   it('should not corrupt data if write fails mid-way', () => {
     store.save({
       projects: [{ id: '1', name: 'a', path: '/a', type: 'nodejs', addedAt: '2026-04-11T00:00:00Z' }],
+      workspaceScenes: [],
       settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
     });
     const data = store.load();
     expect(data.projects[0].name).toBe('a');
+  });
+
+  it('should backfill workspace scenes for old data', () => {
+    store.save({
+      projects: [],
+      workspaceScenes: [],
+      settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
+    });
+
+    const rawPath = store.getFilePath();
+    fs.writeFileSync(rawPath, JSON.stringify({
+      projects: [],
+      settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
+    }), 'utf-8');
+
+    const reloaded = new Store(rawPath).load();
+    expect(reloaded.workspaceScenes).toEqual([]);
+  });
+
+  it('should backfill project workspace state for old data', () => {
+    const rawPath = store.getFilePath();
+    fs.writeFileSync(rawPath, JSON.stringify({
+      projects: [{
+        id: 'legacy-project',
+        name: 'legacy',
+        path: '/legacy',
+        type: 'nodejs',
+        addedAt: '2026-04-11T00:00:00Z',
+      }],
+      workspaceScenes: [],
+      settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
+    }), 'utf-8');
+
+    const reloaded = new Store(rawPath).load();
+    expect(reloaded.projects[0].lastOpenedTab).toBeNull();
+    expect(reloaded.projects[0].lastAppliedSceneId).toBeNull();
+    expect(reloaded.projects[0].services).toHaveLength(0);
+  });
+
+  it('should create default services from start command for legacy projects', () => {
+    const rawPath = store.getFilePath();
+    fs.writeFileSync(rawPath, JSON.stringify({
+      projects: [{
+        id: 'legacy-project',
+        name: 'legacy',
+        path: '/legacy',
+        type: 'nodejs',
+        addedAt: '2026-04-11T00:00:00Z',
+        startCmd: ['npm', 'run', 'dev'],
+      }],
+      workspaceScenes: [],
+      settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
+    }), 'utf-8');
+
+    const reloaded = new Store(rawPath).load();
+    expect(reloaded.projects[0].services).toHaveLength(1);
+    expect(reloaded.projects[0].services?.[0].command).toEqual(['npm', 'run', 'dev']);
+  });
+
+  it('should backfill service health and workflow scene defaults', () => {
+    const rawPath = store.getFilePath();
+    fs.writeFileSync(rawPath, JSON.stringify({
+      projects: [{
+        id: 'legacy-project',
+        name: 'legacy',
+        path: '/legacy',
+        type: 'nodejs',
+        addedAt: '2026-04-11T00:00:00Z',
+        services: [{
+          id: 'web',
+          name: 'Web',
+          command: ['npm', 'run', 'dev'],
+          cwd: '.',
+          autoStart: true,
+        }],
+      }],
+      workspaceScenes: [{
+        id: 'scene-1',
+        projectId: 'legacy-project',
+        name: '联调',
+        targetTab: 'terminal',
+        terminalCommands: ['npm run dev'],
+        autoRun: true,
+        createdAt: '2026-04-11T00:00:00Z',
+        updatedAt: '2026-04-11T00:00:00Z',
+      }],
+      settings: { defaultTerminalFont: 'Consolas', defaultTerminalFontSize: 14 },
+    }), 'utf-8');
+
+    const reloaded = new Store(rawPath).load();
+    expect(reloaded.projects[0].services?.[0].healthCheck).toBeNull();
+    expect(reloaded.projects[0].services?.[0].restartPolicy).toBeNull();
+    expect(reloaded.workspaceScenes[0].serviceIds).toEqual([]);
+    expect(reloaded.workspaceScenes[0].stopOtherServices).toBe(false);
+    expect(reloaded.workspaceScenes[0].commandDelayMs).toBe(300);
+  });
+
+  describe('quality scans', () => {
+    it('should return empty array for new store', () => {
+      expect(store.getQualityScans('proj-1')).toEqual([]);
+    });
+
+    it('should save and retrieve quality scans per project', () => {
+      const scans = [
+        { id: 's1', projectId: 'proj-1', scanTime: '2026-04-13T00:00:00Z', score: 85 },
+        { id: 's2', projectId: 'proj-1', scanTime: '2026-04-13T01:00:00Z', score: 90 },
+      ];
+      store.saveQualityScans('proj-1', scans);
+      const loaded = store.load();
+      expect(loaded.qualityScans).toHaveLength(2);
+      expect(store.getQualityScans('proj-1')).toHaveLength(2);
+      expect(store.getQualityScans('proj-2')).toHaveLength(0);
+    });
+
+    it('should replace existing scans when saving', () => {
+      store.saveQualityScans('proj-1', [{ id: 's1', projectId: 'proj-1' }]);
+      store.saveQualityScans('proj-1', [{ id: 's2', projectId: 'proj-1' }]);
+      expect(store.getQualityScans('proj-1')).toHaveLength(1);
+      expect(store.getQualityScans('proj-1')[0].id).toBe('s2');
+    });
+
+    it('should get all scans across projects', () => {
+      store.saveQualityScans('proj-1', [{ id: 's1', projectId: 'proj-1' }]);
+      store.saveQualityScans('proj-2', [{ id: 's2', projectId: 'proj-2' }]);
+      expect(store.getAllQualityScans()).toHaveLength(2);
+    });
+
+    it('should delete a single scan', () => {
+      store.saveQualityScans('proj-1', [
+        { id: 's1', projectId: 'proj-1' },
+        { id: 's2', projectId: 'proj-1' },
+      ]);
+      const deleted = store.deleteQualityScan('s1');
+      expect(deleted).toBe(true);
+      expect(store.getQualityScans('proj-1')).toHaveLength(1);
+      expect(store.getQualityScans('proj-1')[0].id).toBe('s2');
+    });
+
+    it('should return false when deleting non-existent scan', () => {
+      store.saveQualityScans('proj-1', [{ id: 's1', projectId: 'proj-1' }]);
+      expect(store.deleteQualityScan('nonexistent')).toBe(false);
+    });
+
+    it('should preserve quality scans when project data is saved via save(data)', () => {
+      store.saveQualityScans('proj-1', [{ id: 's1', projectId: 'proj-1', score: 85 }]);
+      // Simulate project:update IPC: load → modify → save(data)
+      const data = store.load();
+      data.projects.push({ id: 'proj-2', name: 'other', path: '/other', type: 'nodejs', addedAt: '2026-04-14T00:00:00Z' });
+      store.save(data);
+      expect(store.getQualityScans('proj-1')).toHaveLength(1);
+      expect(store.getQualityScans('proj-1')[0].id).toBe('s1');
+    });
+
+    it('should preserve quality scans after reload from disk', () => {
+      store.saveQualityScans('proj-1', [{ id: 's1', projectId: 'proj-1', score: 85 }]);
+      // Reload store from the same file (simulates app restart)
+      const store2 = new Store(store.getFilePath());
+      expect(store2.getQualityScans('proj-1')).toHaveLength(1);
+    });
   });
 });

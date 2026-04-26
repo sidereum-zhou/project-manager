@@ -1,6 +1,32 @@
 import fs from 'fs';
 import path from 'path';
 
+import type { AiProviderConfig } from '../../src/types/project';
+
+type ProjectTab = 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'claude' | 'settings';
+type ServiceEnvMap = Record<string, string>;
+
+export interface StoreProjectService {
+  id: string;
+  name: string;
+  command: string[];
+  cwd: string;
+  autoStart: boolean;
+  env?: ServiceEnvMap | null;
+  healthCheck?: {
+    enabled: boolean;
+    mode: 'http' | 'tcp';
+    target: string;
+    intervalSec: number;
+    timeoutMs: number;
+  } | null;
+  restartPolicy?: {
+    enabled: boolean;
+    maxRetries: number;
+    delayMs: number;
+  } | null;
+}
+
 export interface StoreProject {
   id: string;
   name: string;
@@ -14,22 +40,57 @@ export interface StoreProject {
   addedAt: string;
   customStartCmd?: string[] | null;
   customInstallCmd?: string[] | null;
+  lastOpenedTab?: ProjectTab | null;
+  lastAppliedSceneId?: string | null;
+  services?: StoreProjectService[];
+}
+
+export interface StoreWorkspaceScene {
+  id: string;
+  projectId: string;
+  name: string;
+  description?: string;
+  targetTab: 'overview' | 'services' | 'scenes' | 'terminal' | 'files' | 'git' | 'architecture' | 'claude' | 'settings';
+  terminalCommands: string[];
+  serviceIds?: string[];
+  stopOtherServices?: boolean;
+  commandDelayMs?: number | null;
+  preferredBranch?: string | null;
+  autoRun: boolean;
+  lastUsedAt?: string | null;
+  useCount?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface StoreData {
   projects: StoreProject[];
+  workspaceScenes: StoreWorkspaceScene[];
   settings: {
     defaultTerminalFont: string;
     defaultTerminalFontSize: number;
+    aiProvider?: AiProviderConfig | null;
   };
+  qualityScans: any[];
+  aiArchitectureAnalyses: Array<{
+    id: string;
+    projectId: string;
+    timestamp: string;
+    score: number;
+    issueCount: number;
+  }>;
 }
 
 const DEFAULT_DATA: StoreData = {
   projects: [],
+  workspaceScenes: [],
   settings: {
     defaultTerminalFont: 'Consolas',
     defaultTerminalFontSize: 14,
+    aiProvider: null,
   },
+  qualityScans: [],
+  aiArchitectureAnalyses: [],
 };
 
 export class Store {
@@ -48,23 +109,221 @@ export class Store {
     if (this.data) return this.data;
 
     if (!fs.existsSync(this.filePath)) {
-      this.data = { ...JSON.parse(JSON.stringify(DEFAULT_DATA)) };
+      this.data = this.normalize(DEFAULT_DATA);
       return this.data;
     }
 
     const raw = fs.readFileSync(this.filePath, 'utf-8');
-    this.data = JSON.parse(raw) as StoreData;
+    this.data = this.normalize(JSON.parse(raw) as Partial<StoreData>);
     return this.data;
   }
 
-  save(data: StoreData): void {
-    this.data = data;
+  save(data?: StoreData): void {
+    if (data !== undefined) {
+      this.data = this.normalize(data);
+    }
     const tmpPath = this.filePath + '.tmp';
-    fs.writeFileSync(tmpPath, JSON.stringify(data, null, 2), 'utf-8');
-    fs.renameSync(tmpPath, this.filePath);
+    fs.writeFileSync(tmpPath, JSON.stringify(this.data, null, 2), 'utf-8');
+    try {
+      fs.renameSync(tmpPath, this.filePath);
+    } catch (renameErr: any) {
+      // On Windows, rename can fail with EPERM if the target file is locked
+      // (e.g. by antivirus). Fall back to copy + unlink.
+      try {
+        fs.copyFileSync(tmpPath, this.filePath);
+        fs.unlinkSync(tmpPath);
+      } catch {
+        throw renameErr;
+      }
+    }
   }
 
   getFilePath(): string {
     return this.filePath;
   }
+
+  /** Get quality scan history for a specific project */
+  getQualityScans(projectId: string): any[] {
+    this.load();
+    return (this.data.qualityScans ?? []).filter((s: any) => s.projectId === projectId);
+  }
+
+  /** Save quality scan history for a project (replaces existing) */
+  saveQualityScans(projectId: string, scans: any[]): void {
+    this.load();
+    this.data.qualityScans = [
+      ...(this.data.qualityScans ?? []).filter((s: any) => s.projectId !== projectId),
+      ...scans,
+    ];
+    this.save();
+  }
+
+  /** Get all quality scan records across all projects */
+  getAllQualityScans(): any[] {
+    this.load();
+    return this.data.qualityScans ?? [];
+  }
+
+  /** Delete a single quality scan record by ID */
+  deleteQualityScan(scanId: string): boolean {
+    this.load();
+    const before = this.data.qualityScans?.length ?? 0;
+    this.data.qualityScans = (this.data.qualityScans ?? []).filter((s: any) => s.id !== scanId);
+    this.save();
+    return (this.data.qualityScans?.length ?? 0) < before;
+  }
+
+  /** Get AI architecture analysis history for a specific project */
+  getAiArchitectureAnalyses(projectId: string): Array<{ id: string; projectId: string; timestamp: string; score: number; issueCount: number }> {
+    this.load();
+    return (this.data.aiArchitectureAnalyses ?? [])
+      .filter(r => r.projectId === projectId)
+      .sort((a, b) => b.timestamp.localeCompare(a.timestamp));
+  }
+
+  /** Save AI architecture analysis record (upsert + trim to 20 per project) */
+  saveAiArchitectureAnalysis(record: { id: string; projectId: string; timestamp: string; score: number; issueCount: number }): void {
+    this.load();
+    const existing = this.data.aiArchitectureAnalyses.findIndex(r => r.id === record.id);
+    if (existing >= 0) {
+      this.data.aiArchitectureAnalyses[existing] = record;
+    } else {
+      this.data.aiArchitectureAnalyses.push(record);
+    }
+    // Trim to 20 per project
+    const projectRecords = this.data.aiArchitectureAnalyses
+      .filter(r => r.projectId === record.projectId)
+      .sort((a, b) => a.timestamp.localeCompare(b.timestamp));
+    if (projectRecords.length > 20) {
+      const removeIds = new Set(projectRecords.slice(0, projectRecords.length - 20).map(r => r.id));
+      this.data.aiArchitectureAnalyses = this.data.aiArchitectureAnalyses.filter(r => !removeIds.has(r.id));
+    }
+    this.save();
+  }
+
+  /** Get a single AI architecture analysis record by ID */
+  getAiArchitectureAnalysisRecord(analysisId: string): { id: string; projectId: string; timestamp: string; score: number; issueCount: number } | null {
+    this.load();
+    return this.data.aiArchitectureAnalyses.find(r => r.id === analysisId) ?? null;
+  }
+
+  /** Delete an AI architecture analysis record by ID */
+  deleteAiArchitectureAnalysis(analysisId: string): boolean {
+    this.load();
+    const before = this.data.aiArchitectureAnalyses?.length ?? 0;
+    this.data.aiArchitectureAnalyses = (this.data.aiArchitectureAnalyses ?? []).filter(r => r.id !== analysisId);
+    this.save();
+    return (this.data.aiArchitectureAnalyses?.length ?? 0) < before;
+  }
+
+  private normalize(data: Partial<StoreData>): StoreData {
+    return {
+      projects: Array.isArray(data.projects)
+        ? data.projects.map(project => ({
+            ...project,
+            lastOpenedTab: project.lastOpenedTab ?? null,
+            lastAppliedSceneId: project.lastAppliedSceneId ?? null,
+            services: normalizeProjectServices(project),
+          }))
+        : [],
+      workspaceScenes: Array.isArray(data.workspaceScenes)
+        ? data.workspaceScenes.map(scene => ({
+            ...scene,
+            serviceIds: Array.isArray(scene.serviceIds) ? scene.serviceIds : [],
+            stopOtherServices: Boolean(scene.stopOtherServices),
+            commandDelayMs: normalizeCommandDelay(scene.commandDelayMs),
+            lastUsedAt: scene.lastUsedAt ?? null,
+            useCount: scene.useCount ?? 0,
+          }))
+        : [],
+      settings: {
+        ...DEFAULT_DATA.settings,
+        ...(data.settings || {}),
+      },
+      qualityScans: Array.isArray(data.qualityScans) ? data.qualityScans : [],
+      aiArchitectureAnalyses: Array.isArray(data.aiArchitectureAnalyses) ? data.aiArchitectureAnalyses : [],
+    };
+  }
+}
+
+function normalizeProjectServices(project: Partial<StoreProject>): StoreProjectService[] {
+  if (Array.isArray(project.services) && project.services.length > 0) {
+    return project.services.map((service, index) => ({
+      id: service.id || `service-${index + 1}`,
+      name: service.name || `Service ${index + 1}`,
+      command: Array.isArray(service.command) ? service.command : [],
+      cwd: service.cwd || '.',
+      autoStart: Boolean(service.autoStart),
+      env: service.env ?? null,
+      healthCheck: normalizeHealthCheck(service.healthCheck),
+      restartPolicy: normalizeRestartPolicy(service.restartPolicy),
+    }));
+  }
+
+  return createDefaultServices(project.type || 'unknown', project.customStartCmd || project.startCmd);
+}
+
+export function createDefaultServices(type: string, startCmd?: string[] | null): StoreProjectService[] {
+  if (!startCmd || startCmd.length === 0) return [];
+
+  return [{
+    id: 'primary-service',
+    name: defaultServiceName(type),
+    command: startCmd,
+    cwd: '.',
+    autoStart: false,
+    env: null,
+    healthCheck: null,
+    restartPolicy: null,
+  }];
+}
+
+function defaultServiceName(type: string): string {
+  switch (type) {
+    case 'python':
+      return 'Python Service';
+    case 'java':
+      return 'Java Service';
+    case 'monorepo':
+      return 'Primary Workspace';
+    default:
+      return 'App Service';
+  }
+}
+
+function normalizeHealthCheck(value: StoreProjectService['healthCheck'] | undefined): StoreProjectService['healthCheck'] {
+  if (!value || typeof value !== 'object') return null;
+
+  return {
+    enabled: Boolean(value.enabled),
+    mode: value.mode === 'tcp' ? 'tcp' : 'http',
+    target: typeof value.target === 'string' ? value.target.trim() : '',
+    intervalSec: normalizePositiveInt(value.intervalSec, 15),
+    timeoutMs: normalizePositiveInt(value.timeoutMs, 3000),
+  };
+}
+
+function normalizeRestartPolicy(value: StoreProjectService['restartPolicy'] | undefined): StoreProjectService['restartPolicy'] {
+  if (!value || typeof value !== 'object') return null;
+
+  return {
+    enabled: Boolean(value.enabled),
+    maxRetries: normalizeNonNegativeInt(value.maxRetries, 2),
+    delayMs: normalizePositiveInt(value.delayMs, 1500),
+  };
+}
+
+function normalizeCommandDelay(value: unknown): number | null {
+  if (typeof value !== 'number' || !Number.isFinite(value)) return 300;
+  return Math.max(0, Math.round(value));
+}
+
+function normalizePositiveInt(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value <= 0) return fallback;
+  return Math.round(value);
+}
+
+function normalizeNonNegativeInt(value: unknown, fallback: number): number {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return fallback;
+  return Math.round(value);
 }

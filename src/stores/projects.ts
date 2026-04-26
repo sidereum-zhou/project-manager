@@ -63,9 +63,9 @@ export const useProjectStore = defineStore('projects', () => {
     }
   }
 
-  function selectProject(id: string): void {
+  function selectProject(id: string | null): void {
     activeProjectId.value = id;
-    activeProject.value = projects.value.find(p => p.id === id) || null;
+    activeProject.value = id ? projects.value.find(p => p.id === id) || null : null;
   }
 
   return {

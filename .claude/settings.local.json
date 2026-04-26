@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(npx vitest:*)",
+      "Bash(npx vue-tsc:*)",
+      "Bash(npx vite:*)",
+      "Bash(npm run:*)",
+      "WebSearch",
+      "Bash(ls src/components/ClaudeSubagentWorkbench.vue src/views/ClaudeConfigPage.vue docs/superpowers/plans/2026-04-12-claude-agent-console-plan.md)",
+      "Bash(ls .claude/commands/)",
+      "Bash(npm install:*)",
+      "Bash(node -e \"const pkg = require\\('./node_modules/@anthropic-ai/claude-code/package.json'\\); console.log\\(JSON.stringify\\(Object.keys\\(pkg.exports || {}\\), null, 2\\)\\)\")",
+      "Bash(node -e ':*)",
+      "Bash(npm info:*)",
+      "Bash(npx tsc:*)",
+      "Bash(node -e \"const pkg = require\\('./node_modules/@anthropic-ai/claude-agent-sdk/package.json'\\); console.log\\(JSON.stringify\\(pkg.optionalDependencies || {}, null, 2\\)\\)\")",
+      "Bash(git add:*)",
+      "Bash(git commit -m ':*)",
+      "Bash(git commit:*)",
+      "Bash(echo \"exit: $?\")",
+      "Bash(node -e \"try{require.resolve\\('ts-morph'\\);console.log\\('ts-morph found'\\)}catch{console.log\\('ts-morph not found'\\)}\")",
+      "Bash(node -e \"try{require.resolve\\('typescript'\\);console.log\\('typescript found'\\)}catch{console.log\\('typescript not found'\\)}\")",
+      "Bash(curl -L -o MaterialSymbolsOutlined.woff2 \"https://fonts.gstatic.com/s/materialsymbolsoutlined/v202/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2\")",
+      "Bash(npm search:*)",
+      "Bash(node _debug_alias.js)",
+      "Bash(node _debug_import.js)",
+      "Bash(node _debug_path.js)",
+      "Bash(node _debug_fp.js)",
+      "Bash(node _debug_scanner.js)",
+      "Bash(node -e \"require.resolve\\('uuid'\\)\")",
+      "Bash(node -e \"require.resolve\\('@anthropic-ai/sdk'\\)\")",
+      "Bash(TaskUpdate taskId=8:*)",
+      "Bash(git stash:*)"
+    ]
+  }
+}
